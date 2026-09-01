@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Loader2, CheckCircle2 } from 'lucide-react';
+import { Loader2, CheckCircle2, LayoutDashboard } from 'lucide-react';
 import { 
   getInitialRecords, 
   saveRecordsToStorage, 
@@ -559,7 +559,21 @@ export default function App() {
 
       {/* Main Dashboard Container */}
       <main id="dashboard-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
-        
+      {/* Header Banner */}
+{activeSection === 'all_refunds' && (
+  <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-blue-950 text-white rounded-2xl p-6 shadow-xl border border-indigo-500/30">
+    <div className="flex items-center space-x-4">
+      <div className="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center border border-indigo-400/30 shadow-inner">
+        <LayoutDashboard className="w-6 h-6" />
+      </div>
+      <div>
+        <h2 className="text-xl font-extrabold flex items-center gap-2">
+          All Refunds 2026
+        </h2>
+      </div>
+    </div>
+  </div>
+)}  
         {/* KPI Summary Cards */}
         {activeSection === 'all_refunds' && (
           <KpiCards 
