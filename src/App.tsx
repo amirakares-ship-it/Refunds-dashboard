@@ -30,6 +30,7 @@ import { KpiCards } from './components/KpiCards';
 import { ManualInputModal } from './components/ManualInputModal';
 import { FileUploadModal } from './components/FileUploadModal';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
+import { AdminPanel } from './components/AdminPanel';
 import { PdfExportModal } from './components/PdfExportModal';
 import { ChartModal } from './components/ChartModal';
 import { getActiveRecordsFromSqlite } from './utils/sqliteStore';
@@ -559,6 +560,16 @@ export default function App() {
 
       {/* Main Dashboard Container */}
       <main id="dashboard-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+        {!isPresentationMode && (
+         <AdminPanel
+    records={records}
+    setRecords={setRecords}
+    customization={customization}
+    setCustomization={handleSetCustomization}
+    onResetData={handleResetData}
+    onResetCustomization={handleResetCustomization}
+  />
+)}
       {/* Header Banner */}
 {activeSection === 'all_refunds' && (
   <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-blue-950 text-white rounded-2xl p-6 shadow-xl border border-indigo-500/30">
