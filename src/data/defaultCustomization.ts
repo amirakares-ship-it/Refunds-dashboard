@@ -31,7 +31,7 @@ export const defaultCustomization: DashboardCustomization = {
     },
     kpi_combined: {
       id: 'kpi_combined',
-      title: 'Total Combined Refunds',
+      title: 'Total Refunds',
       badgeText: 'All Refunds',
       visible: true,
     },

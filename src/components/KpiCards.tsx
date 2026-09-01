@@ -20,7 +20,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ kpis, configs, customization
 
   const cfgDefault = getCfg('kpi_default', 'Default Refunds');
   const cfgRequest = getCfg('kpi_request', 'Request Refunds');
-  const cfgCombined = getCfg('kpi_combined', 'Total Combined Refunds');
+  const cfgCombined = getCfg('kpi_combined', 'Total Refunds');
 
   const isLight = customization?.isLightMode || customization?.theme === 'clean-light' || customization?.theme === 'soft-warm';
 
