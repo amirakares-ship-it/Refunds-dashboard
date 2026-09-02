@@ -295,7 +295,7 @@ export default function App() {
         subtitle: 'تجميع الصفحات والجداول التنفيذية',
       });
       const pages = [
-        { id: 'pdf-page-all-refunds', title: '1. Main Dashboard (All Refunds 2026)' },
+        { id: 'pdf-page-all-refunds', title: '1. Main Dashboard (All Refunds for Financing Companies 2026)' },
         { id: 'pdf-page-cs-work', title: '2. Customer Service Work Report 2026' },
         { id: 'pdf-page-funds', title: '3. Monthly Funds & Matrix 2026' },
         { id: 'pdf-page-finance', title: '4. Finance & Cash Liabilities 2026' },
@@ -579,7 +579,7 @@ export default function App() {
       </div>
       <div>
         <h2 className="text-xl font-extrabold flex items-center gap-2">
-          All Refunds 2026
+          All Refunds for Financing Companies 2026
         </h2>
       </div>
     </div>
