@@ -137,35 +137,20 @@ const CustomBarLabel: React.FC<CustomBarLabelProps> = (props) => {
     : val.toLocaleString();
 
   const fontSize = isFullscreen ? 13 : 11.5;
-  // Rough width estimate so the background chip fits the text
-  const chipWidth = labelText.length * fontSize * 0.62 + 8;
-  const chipHeight = fontSize + 7;
 
   return (
-    <g style={{ pointerEvents: 'none' }}>
-      <rect
-        x={x + width / 2 - chipWidth / 2}
-        y={y - chipHeight - 8}
-        width={chipWidth}
-        height={chipHeight}
-        rx={5}
-        fill={isLight ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.85)'}
-        stroke={primaryColor}
-        strokeOpacity={0.35}
-        strokeWidth={1}
-      />
-      <text
-        x={x + width / 2}
-        y={y - 9}
-        textAnchor="middle"
-        fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
-        fontSize={fontSize}
-        fontWeight={800}
-        fill={primaryColor}
-      >
-        {labelText}
-      </text>
-    </g>
+    <text
+      x={x + width / 2}
+      y={y - 9}
+      textAnchor="middle"
+      fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+      fontSize={fontSize}
+      fontWeight={800}
+      fill={primaryColor}
+      style={{ pointerEvents: 'none' }}
+    >
+      {labelText}
+    </text>
   );
 };
 
