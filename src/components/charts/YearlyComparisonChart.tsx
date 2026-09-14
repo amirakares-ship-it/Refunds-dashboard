@@ -134,21 +134,38 @@ const CustomBarLabel: React.FC<CustomBarLabelProps> = (props) => {
   // Display Amount in Millions (e.g. 1.25M / 0.45M) OR Count (e.g. 84) based on active metric selection
   const labelText = metric === 'amount' 
     ? formatPerMillion(val) 
-    : `${val}`;
+    : val.toLocaleString();
+
+  const fontSize = isFullscreen ? 13 : 11.5;
+  // Rough width estimate so the background chip fits the text
+  const chipWidth = labelText.length * fontSize * 0.62 + 8;
+  const chipHeight = fontSize + 7;
 
   return (
-    <text
-      x={x + width / 2}
-      y={y - 7}
-      textAnchor="middle"
-      fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
-      fontSize={isFullscreen ? 11 : 9.5}
-      fontWeight={800}
-      fill={primaryColor}
-      style={{ pointerEvents: 'none' }}
-    >
-      {labelText}
-    </text>
+    <g style={{ pointerEvents: 'none' }}>
+      <rect
+        x={x + width / 2 - chipWidth / 2}
+        y={y - chipHeight - 8}
+        width={chipWidth}
+        height={chipHeight}
+        rx={5}
+        fill={isLight ? 'rgba(255,255,255,0.9)' : 'rgba(15,23,42,0.85)'}
+        stroke={primaryColor}
+        strokeOpacity={0.35}
+        strokeWidth={1}
+      />
+      <text
+        x={x + width / 2}
+        y={y - 9}
+        textAnchor="middle"
+        fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+        fontSize={fontSize}
+        fontWeight={800}
+        fill={primaryColor}
+      >
+        {labelText}
+      </text>
+    </g>
   );
 };
 
@@ -585,7 +602,7 @@ export const YearlyComparisonChart: React.FC<YearlyComparisonChartProps> = ({
         {/* Grouped Bar Chart */}
         <div style={{ width: '100%', height: isFullscreen ? 360 : 340 }} className="w-full mt-1">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={currentChartData} margin={{ top: 28, right: 15, left: 5, bottom: 5 }}>
+            <BarChart data={currentChartData} margin={{ top: 36, right: 15, left: 5, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={isLight ? '#e2e8f0' : '#334155'} opacity={0.6} />
               <XAxis 
                 dataKey={xKey} 
