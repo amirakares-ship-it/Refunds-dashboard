@@ -269,7 +269,7 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
             {/* Header: Months Columns - Centered */}
             <thead className={`${theadBg} font-bold text-xs uppercase tracking-wider`}>
               <tr>
-                <th className={`${cellPad} sticky left-0 z-20 ${stickyColBg} min-w-[140px] font-extrabold text-left`}>
+                <th className={`${cellPad} sticky left-0 z-20 ${stickyColBg} w-px whitespace-nowrap font-extrabold text-left`}>
                   Metric / Row
                 </th>
                 {matrixData.months.map(m => (
@@ -287,7 +287,7 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
               {/* ROW 1: Funds Amount */}
               <tr id="row-funds-amount" className={`${isLight ? 'bg-white hover:bg-emerald-50/60' : 'bg-slate-900/90 hover:bg-emerald-950/20'} transition-colors`}>
-                <td className={`${stickyCellPad} sticky left-0 z-10 ${stickyColBg} font-sans font-bold text-left`}>
+                <td className={`${stickyCellPad} sticky left-0 z-10 ${stickyColBg} whitespace-nowrap font-sans font-bold text-left`}>
                   <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                     <span className="p-1 rounded-md bg-emerald-500/10 border border-emerald-500/20">
                       <Landmark className="w-4 h-4" />
@@ -316,7 +316,7 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
 
               {/* ROW 2: Refunds Amount */}
               <tr id="row-refunds-amount" className={`${isLight ? 'bg-slate-50/50 hover:bg-amber-50/60' : 'bg-slate-900/60 hover:bg-amber-950/20'} transition-colors`}>
-                <td className={`${stickyCellPad} sticky left-0 z-10 ${stickyColBg} font-sans font-bold text-left`}>
+                <td className={`${stickyCellPad} sticky left-0 z-10 ${stickyColBg} whitespace-nowrap font-sans font-bold text-left`}>
                   <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                     <span className="p-1 rounded-md bg-amber-500/10 border border-amber-500/20">
                       <RotateCcw className="w-4 h-4" />
@@ -360,7 +360,7 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
 
               {/* ROW 3: Percentage% */}
               <tr id="row-percentage" className={`${isLight ? 'bg-white hover:bg-indigo-50/60' : 'bg-slate-900/90 hover:bg-indigo-950/20'} transition-colors font-bold`}>
-                <td className={`${stickyCellPad} sticky left-0 z-10 ${stickyColBg} font-sans font-bold text-left`}>
+                <td className={`${stickyCellPad} sticky left-0 z-10 ${stickyColBg} whitespace-nowrap font-sans font-bold text-left`}>
                   <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
                     <span className="p-1 rounded-md bg-indigo-500/10 border border-indigo-500/20">
                       <Percent className="w-4 h-4" />
