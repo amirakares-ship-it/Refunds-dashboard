@@ -47,6 +47,7 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
   );
   const [matrixType, setMatrixType] = useState<'ALL' | 'default' | 'Request'>('ALL');
   const [viewMode, setViewMode] = useState<'matrix' | 'multiCompany'>('matrix');
+  const [showOnlyPercentage, setShowOnlyPercentage] = useState(false);
 
   // Keep synced if parent changes selectedCompany
   React.useEffect(() => {
@@ -402,6 +403,23 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
       {/* MATRIX VIEW 2: All Companies Side-by-Side Comparison */}
       {viewMode === 'multiCompany' && (
         <div className="space-y-4">
+          {/* Hide/Show Funds & Refunds rows, keep only Percentage % */}
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowOnlyPercentage(prev => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                showOnlyPercentage
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                  : isLight
+                  ? 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+              }`}
+            >
+              <Percent className="w-3.5 h-3.5" />
+              {showOnlyPercentage ? 'إظهار Funds & Refunds' : 'إخفاء Funds & Refunds (% فقط)'}
+            </button>
+          </div>
+
           <div className={`overflow-x-auto overflow-y-auto max-h-[70vh] border ${tableBorder} rounded-xl shadow-sm bg-slate-950/10`}>
             <table className="w-full text-left text-xs border-collapse">
               <thead className={`${theadBg} font-bold text-xs uppercase tracking-wider`}>
@@ -438,6 +456,7 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
                     </tr>
 
                     {/* 1. Funds Row */}
+                    {!showOnlyPercentage && (
                     <tr className={`${isLight ? 'bg-white hover:bg-emerald-50/60' : 'bg-slate-900/90 hover:bg-emerald-950/20'} transition-colors`}>
                       <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${stickyColBg} w-px whitespace-nowrap font-sans font-medium text-emerald-600 dark:text-emerald-400 ${gridLabelTextSize} text-left`}>
                         1. Funds amount
@@ -451,8 +470,10 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
                         {formatTableAmount(data.totalFunds)}
                       </td>
                     </tr>
+                    )}
 
                     {/* 2. Refunds Row */}
+                    {!showOnlyPercentage && (
                     <tr className={`${isLight ? 'bg-slate-50/50 hover:bg-amber-50/60' : 'bg-slate-900/60 hover:bg-amber-950/20'} transition-colors`}>
                       <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${stickyColBg} w-px whitespace-nowrap font-sans font-medium text-amber-600 dark:text-amber-400 ${gridLabelTextSize} text-left`}>
                         2. Refunds amount
@@ -466,6 +487,7 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
                         {formatTableAmount(data.totalRefunds)}
                       </td>
                     </tr>
+                    )}
 
                     {/* 3. Percentage Row */}
                     <tr className={`${isLight ? 'bg-white hover:bg-indigo-50/60' : 'bg-slate-900/90 hover:bg-indigo-950/20'} transition-colors`}>
