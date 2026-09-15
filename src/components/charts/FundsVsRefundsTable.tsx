@@ -118,6 +118,17 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
     return isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold' : 'bg-emerald-950/60 text-emerald-300 border-emerald-700/60 font-bold';
   };
 
+  // Distinct pastel color band per company (All Companies Grid) so each
+  // company's 4-row block is easy to tell apart from the next at a glance.
+  const companyPalette = [
+    { header: 'bg-blue-50 dark:bg-blue-950/40', row: 'bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100/70 dark:hover:bg-blue-900/30' },
+    { header: 'bg-purple-50 dark:bg-purple-950/40', row: 'bg-purple-50/50 dark:bg-purple-950/20 hover:bg-purple-100/70 dark:hover:bg-purple-900/30' },
+    { header: 'bg-rose-50 dark:bg-rose-950/40', row: 'bg-rose-50/50 dark:bg-rose-950/20 hover:bg-rose-100/70 dark:hover:bg-rose-900/30' },
+    { header: 'bg-teal-50 dark:bg-teal-950/40', row: 'bg-teal-50/50 dark:bg-teal-950/20 hover:bg-teal-100/70 dark:hover:bg-teal-900/30' },
+    { header: 'bg-orange-50 dark:bg-orange-950/40', row: 'bg-orange-50/50 dark:bg-orange-950/20 hover:bg-orange-100/70 dark:hover:bg-orange-900/30' },
+    { header: 'bg-cyan-50 dark:bg-cyan-950/40', row: 'bg-cyan-50/50 dark:bg-cyan-950/20 hover:bg-cyan-100/70 dark:hover:bg-cyan-900/30' },
+  ];
+
   // Helper for company filter button active styling
   const getCompanyBtnStyle = (comp: string, isActive: boolean) => {
     if (!isActive) {
@@ -390,28 +401,30 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
       {/* MATRIX VIEW 2: All Companies Side-by-Side Comparison */}
       {viewMode === 'multiCompany' && (
         <div className="space-y-4">
-          <div className={`overflow-x-auto border ${tableBorder} rounded-xl shadow-sm bg-slate-950/10`}>
+          <div className={`overflow-x-auto overflow-y-auto max-h-[70vh] border ${tableBorder} rounded-xl shadow-sm bg-slate-950/10`}>
             <table className="w-full text-left text-xs border-collapse">
               <thead className={`${theadBg} font-bold text-xs uppercase tracking-wider`}>
                 <tr>
-                  <th className={`${gridCellPad} sticky left-0 z-20 ${stickyColBg} min-w-[150px] font-extrabold text-left`}>
+                  <th className={`${gridCellPad} sticky left-0 top-0 z-30 ${stickyColBg} w-px whitespace-nowrap font-extrabold text-left`}>
                     Company &amp; Metric
                   </th>
                   {matrixData.months.map(m => (
-                    <th key={m} className={`${gridCellPad} text-center ${gridColMinWidth} font-extrabold border-l ${cellBorder} ${gridLabelTextSize}`}>
+                    <th key={m} className={`${gridCellPad} sticky top-0 z-20 ${theadBg} text-center ${gridColMinWidth} font-extrabold border-l ${cellBorder} ${gridLabelTextSize}`}>
                       {m}
                     </th>
                   ))}
-                  <th className={`${gridCellPad} text-center ${gridTotalColMinWidth} font-black ${totalColBg} ${gridLabelTextSize}`}>
+                  <th className={`${gridCellPad} sticky top-0 z-20 text-center ${gridTotalColMinWidth} font-black ${totalColBg} ${gridLabelTextSize}`}>
                     Total
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800 font-mono text-xs">
-                {allCompanyMatrices.map(({ company, data }) => (
+                {allCompanyMatrices.map(({ company, data }, companyIndex) => {
+                  const palette = companyPalette[companyIndex % companyPalette.length];
+                  return (
                   <React.Fragment key={company}>
                     {/* Company Header Row */}
-                    <tr className="bg-slate-100 dark:bg-slate-950 font-sans font-extrabold text-slate-800 dark:text-slate-200">
+                    <tr className={`${palette.header} font-sans font-extrabold text-slate-800 dark:text-slate-200`}>
                       <td colSpan={matrixData.months.length + 2} className={`${gridCellPad} pl-3 border-t border-slate-300 dark:border-slate-700`}>
                         <div className="flex items-center gap-2">
                           <Building2 className="w-4 h-4 text-blue-500" />
@@ -424,8 +437,8 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
                     </tr>
 
                     {/* 1. Funds Row */}
-                    <tr className={`${isLight ? 'bg-white hover:bg-emerald-50/60' : 'bg-slate-900/90 hover:bg-emerald-950/20'} transition-colors`}>
-                      <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${stickyColBg} font-sans font-medium text-emerald-600 dark:text-emerald-400 ${gridLabelTextSize} text-left`}>
+                    <tr className={`${palette.row} transition-colors`}>
+                      <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${palette.row} w-px whitespace-nowrap font-sans font-medium text-emerald-600 dark:text-emerald-400 ${gridLabelTextSize} text-left`}>
                         1. Funds amount
                       </td>
                       {data.fundsRow.map((val, i) => (
@@ -439,8 +452,8 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
                     </tr>
 
                     {/* 2. Refunds Row */}
-                    <tr className={`${isLight ? 'bg-slate-50/50 hover:bg-amber-50/60' : 'bg-slate-900/60 hover:bg-amber-950/20'} transition-colors`}>
-                      <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${stickyColBg} font-sans font-medium text-amber-600 dark:text-amber-400 ${gridLabelTextSize} text-left`}>
+                    <tr className={`${palette.row} transition-colors`}>
+                      <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${palette.row} w-px whitespace-nowrap font-sans font-medium text-amber-600 dark:text-amber-400 ${gridLabelTextSize} text-left`}>
                         2. Refunds amount
                       </td>
                       {data.refundsRow.map((val, i) => (
@@ -454,8 +467,8 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
                     </tr>
 
                     {/* 3. Percentage Row */}
-                    <tr className={`${isLight ? 'bg-white hover:bg-indigo-50/60' : 'bg-slate-900/90 hover:bg-indigo-950/20'} transition-colors`}>
-                      <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${stickyColBg} font-sans font-bold text-indigo-600 dark:text-indigo-400 ${gridLabelTextSize} text-left`}>
+                    <tr className={`${palette.row} transition-colors`}>
+                      <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${palette.row} w-px whitespace-nowrap font-sans font-bold text-indigo-600 dark:text-indigo-400 ${gridLabelTextSize} text-left`}>
                         3. Percentage %
                       </td>
                       {data.percentageRow.map((pct, i) => (
@@ -472,7 +485,8 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
                       </td>
                     </tr>
                   </React.Fragment>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
