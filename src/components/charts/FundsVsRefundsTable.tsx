@@ -94,15 +94,15 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
   const totalColMinWidth = isFullscreen ? 'min-w-[105px]' : 'min-w-[85px]';
 
   // Sizing for the "All Companies Grid" (multi-company) table
-  const gridCellPad = isFullscreen ? 'p-3.5' : 'p-2.5';
+  const gridCellPad = isFullscreen ? 'p-2' : 'py-1 px-1.5';
   const gridLabelTextSize = isFullscreen ? 'text-sm' : 'text-xs';
   const gridValueTextSize = isFullscreen ? 'text-base' : 'text-xs';
   const gridCompanyNameSize = isFullscreen ? 'text-lg' : 'text-sm';
   const gridCompanySummarySize = isFullscreen ? 'text-sm' : 'text-[11px]';
   const gridPctBadgeSize = isFullscreen ? 'text-sm px-3 py-1' : 'text-[10px] px-1.5 py-0.5';
   const gridPctTotalBadgeSize = isFullscreen ? 'text-base px-3.5 py-1.5' : 'text-[11px] px-2 py-0.5';
-  const gridColMinWidth = isFullscreen ? 'min-w-[105px]' : 'min-w-[80px]';
-  const gridTotalColMinWidth = isFullscreen ? 'min-w-[120px]' : 'min-w-[95px]';
+  const gridColMinWidth = isFullscreen ? 'min-w-[75px]' : 'min-w-[52px]';
+  const gridTotalColMinWidth = isFullscreen ? 'min-w-[85px]' : 'min-w-[64px]';
 
   // Helper for percentage badge styling with clear contrast
   const getPctBadgeStyle = (pct: number) => {
@@ -118,15 +118,16 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
     return isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold' : 'bg-emerald-950/60 text-emerald-300 border-emerald-700/60 font-bold';
   };
 
-  // Distinct pastel color band per company (All Companies Grid) so each
-  // company's 4-row block is easy to tell apart from the next at a glance.
+  // Distinct pastel color per company — applied ONLY to that company's header
+  // row (the row with the company name), so it stands out as a group divider.
+  // The metric rows underneath stay neutral for a calmer, easier-to-scan grid.
   const companyPalette = [
-    { header: 'bg-blue-50 dark:bg-blue-950/40', row: 'bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100/70 dark:hover:bg-blue-900/30' },
-    { header: 'bg-purple-50 dark:bg-purple-950/40', row: 'bg-purple-50/50 dark:bg-purple-950/20 hover:bg-purple-100/70 dark:hover:bg-purple-900/30' },
-    { header: 'bg-rose-50 dark:bg-rose-950/40', row: 'bg-rose-50/50 dark:bg-rose-950/20 hover:bg-rose-100/70 dark:hover:bg-rose-900/30' },
-    { header: 'bg-teal-50 dark:bg-teal-950/40', row: 'bg-teal-50/50 dark:bg-teal-950/20 hover:bg-teal-100/70 dark:hover:bg-teal-900/30' },
-    { header: 'bg-orange-50 dark:bg-orange-950/40', row: 'bg-orange-50/50 dark:bg-orange-950/20 hover:bg-orange-100/70 dark:hover:bg-orange-900/30' },
-    { header: 'bg-cyan-50 dark:bg-cyan-950/40', row: 'bg-cyan-50/50 dark:bg-cyan-950/20 hover:bg-cyan-100/70 dark:hover:bg-cyan-900/30' },
+    { header: 'bg-blue-50 dark:bg-blue-950/40', name: 'text-blue-700 dark:text-blue-300', icon: 'text-blue-500' },
+    { header: 'bg-purple-50 dark:bg-purple-950/40', name: 'text-purple-700 dark:text-purple-300', icon: 'text-purple-500' },
+    { header: 'bg-rose-50 dark:bg-rose-950/40', name: 'text-rose-700 dark:text-rose-300', icon: 'text-rose-500' },
+    { header: 'bg-teal-50 dark:bg-teal-950/40', name: 'text-teal-700 dark:text-teal-300', icon: 'text-teal-500' },
+    { header: 'bg-orange-50 dark:bg-orange-950/40', name: 'text-orange-700 dark:text-orange-300', icon: 'text-orange-500' },
+    { header: 'bg-cyan-50 dark:bg-cyan-950/40', name: 'text-cyan-700 dark:text-cyan-300', icon: 'text-cyan-500' },
   ];
 
   // Helper for company filter button active styling
@@ -427,8 +428,8 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
                     <tr className={`${palette.header} font-sans font-extrabold text-slate-800 dark:text-slate-200`}>
                       <td colSpan={matrixData.months.length + 2} className={`${gridCellPad} pl-3 border-t border-slate-300 dark:border-slate-700`}>
                         <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4 text-blue-500" />
-                          <span className={`${gridCompanyNameSize} text-blue-600 dark:text-blue-400 font-bold`}>{company}</span>
+                          <Building2 className={`w-4 h-4 ${palette.icon}`} />
+                          <span className={`${gridCompanyNameSize} ${palette.name} font-bold`}>{company}</span>
                           <span className={`${gridCompanySummarySize} font-normal text-slate-500 font-mono ml-2`}>
                             (Total Funds: {formatTableAmount(data.totalFunds)} | Refunds: {formatTableAmount(data.totalRefunds)} | Ratio: {data.totalPercentage.toFixed(1)}%)
                           </span>
@@ -437,8 +438,8 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
                     </tr>
 
                     {/* 1. Funds Row */}
-                    <tr className={`${palette.row} transition-colors`}>
-                      <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${palette.row} w-px whitespace-nowrap font-sans font-medium text-emerald-600 dark:text-emerald-400 ${gridLabelTextSize} text-left`}>
+                    <tr className={`${isLight ? 'bg-white hover:bg-emerald-50/60' : 'bg-slate-900/90 hover:bg-emerald-950/20'} transition-colors`}>
+                      <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${stickyColBg} w-px whitespace-nowrap font-sans font-medium text-emerald-600 dark:text-emerald-400 ${gridLabelTextSize} text-left`}>
                         1. Funds amount
                       </td>
                       {data.fundsRow.map((val, i) => (
@@ -452,8 +453,8 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
                     </tr>
 
                     {/* 2. Refunds Row */}
-                    <tr className={`${palette.row} transition-colors`}>
-                      <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${palette.row} w-px whitespace-nowrap font-sans font-medium text-amber-600 dark:text-amber-400 ${gridLabelTextSize} text-left`}>
+                    <tr className={`${isLight ? 'bg-slate-50/50 hover:bg-amber-50/60' : 'bg-slate-900/60 hover:bg-amber-950/20'} transition-colors`}>
+                      <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${stickyColBg} w-px whitespace-nowrap font-sans font-medium text-amber-600 dark:text-amber-400 ${gridLabelTextSize} text-left`}>
                         2. Refunds amount
                       </td>
                       {data.refundsRow.map((val, i) => (
@@ -467,8 +468,8 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
                     </tr>
 
                     {/* 3. Percentage Row */}
-                    <tr className={`${palette.row} transition-colors`}>
-                      <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${palette.row} w-px whitespace-nowrap font-sans font-bold text-indigo-600 dark:text-indigo-400 ${gridLabelTextSize} text-left`}>
+                    <tr className={`${isLight ? 'bg-white hover:bg-indigo-50/60' : 'bg-slate-900/90 hover:bg-indigo-950/20'} transition-colors`}>
+                      <td className={`${gridCellPad} pl-6 sticky left-0 z-10 ${stickyColBg} w-px whitespace-nowrap font-sans font-bold text-indigo-600 dark:text-indigo-400 ${gridLabelTextSize} text-left`}>
                         3. Percentage %
                       </td>
                       {data.percentageRow.map((pct, i) => (
