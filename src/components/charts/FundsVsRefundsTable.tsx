@@ -94,15 +94,15 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
   const totalColMinWidth = isFullscreen ? 'min-w-[105px]' : 'min-w-[85px]';
 
   // Sizing for the "All Companies Grid" (multi-company) table
-  const gridCellPad = isFullscreen ? 'p-2' : 'py-1 px-1.5';
+  const gridCellPad = isFullscreen ? 'p-1.5' : 'py-1 px-0.5';
   const gridLabelTextSize = isFullscreen ? 'text-sm' : 'text-xs';
   const gridValueTextSize = isFullscreen ? 'text-base' : 'text-xs';
   const gridCompanyNameSize = isFullscreen ? 'text-lg' : 'text-sm';
   const gridCompanySummarySize = isFullscreen ? 'text-sm' : 'text-[11px]';
   const gridPctBadgeSize = isFullscreen ? 'text-sm px-3 py-1' : 'text-[10px] px-1.5 py-0.5';
   const gridPctTotalBadgeSize = isFullscreen ? 'text-base px-3.5 py-1.5' : 'text-[11px] px-2 py-0.5';
-  const gridColMinWidth = isFullscreen ? 'min-w-[75px]' : 'min-w-[52px]';
-  const gridTotalColMinWidth = isFullscreen ? 'min-w-[85px]' : 'min-w-[64px]';
+  const gridColMinWidth = isFullscreen ? 'min-w-[60px]' : 'min-w-[40px]';
+  const gridTotalColMinWidth = isFullscreen ? 'min-w-[72px]' : 'min-w-[50px]';
 
   // Helper for percentage badge styling with clear contrast
   const getPctBadgeStyle = (pct: number) => {
