@@ -53,7 +53,7 @@ export const ChartModal: React.FC<ChartModalProps> = ({ modalState, onClose, chi
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className={`rounded-2xl shadow-2xl border w-full max-w-7xl max-h-[96vh] flex flex-col overflow-hidden relative transition-colors ${
+      <div className={`rounded-2xl shadow-2xl border w-full max-w-[1600px] max-h-[96vh] flex flex-col overflow-hidden relative transition-colors ${
         isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900 border-slate-800 text-slate-200'
       }`}>
         
