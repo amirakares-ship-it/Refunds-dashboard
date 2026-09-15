@@ -602,16 +602,19 @@ export const FundsSection: React.FC<FundsSectionProps> = ({
         </div>
       </div>
 
-      {/* Embedded Full Matrix Table Component */}
-      <div className="pt-2">
-        <FundsVsRefundsTable
-          records={records}
-          manualInputs={manualInputs}
-          selectedCompany={selectedCompany}
-          onOpenManualInputs={onOpenManualInputs}
-          onExpandChart={onExpandChart}
-          isLight={isLight}
-        />
+      {/* Embedded Full Matrix Table Component — widened to break out of the
+          standard page max-width so all 12 months fit with less/no horizontal scroll */}
+      <div className="pt-2 w-screen relative left-1/2 -translate-x-1/2 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1700px] mx-auto">
+          <FundsVsRefundsTable
+            records={records}
+            manualInputs={manualInputs}
+            selectedCompany={selectedCompany}
+            onOpenManualInputs={onOpenManualInputs}
+            onExpandChart={onExpandChart}
+            isLight={isLight}
+          />
+        </div>
       </div>
     </div>
   );

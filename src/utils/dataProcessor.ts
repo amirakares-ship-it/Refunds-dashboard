@@ -369,10 +369,10 @@ export function formatEGPFull(amount: number): string {
 export function formatTableAmount(amount: number): string {
   if (amount === 0 || !amount) return '0';
   if (Math.abs(amount) >= 1000000) {
-    return `${(amount / 1000000).toFixed(1)}M`;
+    return `${(amount / 1000000).toFixed(1)} M`;
   }
   if (Math.abs(amount) >= 1000) {
-    return `${(amount / 1000).toFixed(0)}K`;
+    return `${(amount / 1000).toFixed(0)} K`;
   }
   return amount.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }

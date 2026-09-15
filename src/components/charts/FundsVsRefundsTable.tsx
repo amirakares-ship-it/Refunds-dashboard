@@ -90,8 +90,8 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
   const pctBadgeTextSize = isFullscreen ? 'text-sm px-3.5 py-1' : 'text-xs px-2.5 py-0.5';
   const pctTotalBadgeTextSize = isFullscreen ? 'text-base px-4 py-1.5' : 'text-xs px-3 py-1';
   const rowLabelTextSize = isFullscreen ? 'text-base' : 'text-sm';
-  const colMinWidth = isFullscreen ? 'min-w-[130px]' : 'min-w-[105px]';
-  const totalColMinWidth = isFullscreen ? 'min-w-[150px]' : 'min-w-[130px]';
+  const colMinWidth = isFullscreen ? 'min-w-[130px]' : 'min-w-[88px]';
+  const totalColMinWidth = isFullscreen ? 'min-w-[150px]' : 'min-w-[105px]';
 
   // Sizing for the "All Companies Grid" (multi-company) table
   const gridCellPad = isFullscreen ? 'p-3.5' : 'p-2.5';
@@ -269,7 +269,7 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
             {/* Header: Months Columns - Centered */}
             <thead className={`${theadBg} font-bold text-xs uppercase tracking-wider`}>
               <tr>
-                <th className={`${cellPad} sticky left-0 z-20 ${stickyColBg} min-w-[210px] font-extrabold text-left`}>
+                <th className={`${cellPad} sticky left-0 z-20 ${stickyColBg} min-w-[170px] font-extrabold text-left`}>
                   Metric / Row
                 </th>
                 {matrixData.months.map(m => (
