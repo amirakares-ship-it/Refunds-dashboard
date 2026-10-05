@@ -185,6 +185,30 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
   const rawGrandTotal = useMemo(() => rawGroupedByDate.reduce((sum, g) => sum + g.total, 0), [rawGroupedByDate]);
   const rawGrandCount = useMemo(() => rawGroupedByDate.reduce((sum, g) => sum + g.count, 0), [rawGroupedByDate]);
 
+  // Aging analysis for Cheque Pending records — always based on pending status
+  // (independent of the Status dropdown) so it's meaningful even when another status is selected
+  const chequeAging = useMemo(() => {
+    const buckets = {
+      fresh: { label: '0-30 يوم', count: 0, total: 0 },
+      mid: { label: '31-60 يوم', count: 0, total: 0 },
+      overdue: { label: 'أكتر من 60 يوم', count: 0, total: 0 },
+    };
+    const today = Date.now();
+    financeRecords
+      .filter(r => (r.status || '').toLowerCase().includes('cheque'))
+      .filter(r => rawFilterCompany === 'ALL' || r.company === rawFilterCompany)
+      .filter(r => rawFilterType === 'ALL' || (r.type || '').toLowerCase() === rawFilterType.toLowerCase())
+      .forEach(r => {
+        const actionTime = r.actionDate ? new Date(r.actionDate).getTime() : NaN;
+        if (isNaN(actionTime)) return;
+        const days = Math.floor((today - actionTime) / 86400000);
+        const bucket = days <= 30 ? buckets.fresh : days <= 60 ? buckets.mid : buckets.overdue;
+        bucket.count += 1;
+        bucket.total += r.amount;
+      });
+    return buckets;
+  }, [financeRecords, rawFilterCompany, rawFilterType]);
+
   const tableChequeAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.cheque, 0), [tableCompanyData]);
   const tableCancelledAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.cancelled, 0), [tableCompanyData]);
   const tableTotalAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.total, 0), [tableCompanyData]);
@@ -448,6 +472,54 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
             </select>
           </div>
         </div>
+
+        {/* Cheque Pending Aging Analysis */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {(
+            [
+              {
+                key: 'fresh' as const,
+                icon: CheckCircle2,
+                card: isLight ? 'bg-emerald-50 border-emerald-200' : 'bg-emerald-950/20 border-emerald-900/40',
+                iconWrap: 'bg-emerald-500/15 text-emerald-500',
+                label: 'text-emerald-600 dark:text-emerald-400',
+              },
+              {
+                key: 'mid' as const,
+                icon: Clock,
+                card: isLight ? 'bg-amber-50 border-amber-200' : 'bg-amber-950/20 border-amber-900/40',
+                iconWrap: 'bg-amber-500/15 text-amber-500',
+                label: 'text-amber-600 dark:text-amber-400',
+              },
+              {
+                key: 'overdue' as const,
+                icon: ShieldAlert,
+                card: isLight ? 'bg-rose-50 border-rose-200' : 'bg-rose-950/20 border-rose-900/40',
+                iconWrap: 'bg-rose-500/15 text-rose-500',
+                label: 'text-rose-600 dark:text-rose-400',
+              },
+            ]
+          ).map(({ key, icon: Icon, card, iconWrap, label }) => {
+            const b = chequeAging[key];
+            return (
+              <div key={key} className={`rounded-xl p-3.5 border flex items-center gap-3 ${card}`}>
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${iconWrap}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className={`text-[11px] font-bold uppercase tracking-wider ${label}`}>
+                    {b.label}
+                  </p>
+                  <p className={`text-base font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    {formatTableAmountFull(b.total)}
+                    <span className={`text-xs font-semibold ml-1 ${subTextColor}`}>({b.count})</span>
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
         <div className={`overflow-x-auto overflow-y-auto flex-1 border ${tableBorder} rounded-xl`}>
           <table className="w-full text-left text-sm">
             <thead className={`${theadBg} font-bold border-b text-xs uppercase tracking-wider sticky top-0 z-10`}>
@@ -856,6 +928,53 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
 
         {isRawTableVisible && (
           <>
+            {/* Cheque Pending Aging Analysis */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              {(
+                [
+                  {
+                    key: 'fresh' as const,
+                    icon: CheckCircle2,
+                    card: isLight ? 'bg-emerald-50 border-emerald-200' : 'bg-emerald-950/20 border-emerald-900/40',
+                    iconWrap: 'bg-emerald-500/15 text-emerald-500',
+                    label: 'text-emerald-600 dark:text-emerald-400',
+                  },
+                  {
+                    key: 'mid' as const,
+                    icon: Clock,
+                    card: isLight ? 'bg-amber-50 border-amber-200' : 'bg-amber-950/20 border-amber-900/40',
+                    iconWrap: 'bg-amber-500/15 text-amber-500',
+                    label: 'text-amber-600 dark:text-amber-400',
+                  },
+                  {
+                    key: 'overdue' as const,
+                    icon: ShieldAlert,
+                    card: isLight ? 'bg-rose-50 border-rose-200' : 'bg-rose-950/20 border-rose-900/40',
+                    iconWrap: 'bg-rose-500/15 text-rose-500',
+                    label: 'text-rose-600 dark:text-rose-400',
+                  },
+                ]
+              ).map(({ key, icon: Icon, card, iconWrap, label }) => {
+                const b = chequeAging[key];
+                return (
+                  <div key={key} className={`rounded-xl p-3 border flex items-center gap-3 ${card}`}>
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${iconWrap}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`text-[10px] font-bold uppercase tracking-wider ${label}`}>
+                        {b.label}
+                      </p>
+                      <p className={`text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {formatTableAmountFull(b.total)}
+                        <span className={`text-[10px] font-semibold ml-1 ${subTextColor}`}>({b.count})</span>
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             {/* Company / Type / Status filters */}
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <select
