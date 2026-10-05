@@ -710,7 +710,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
                 All Finance Records (Detailed)
               </h3>
               <p className={`text-[10px] uppercase tracking-wider font-semibold ${subTextColor}`}>
-                Request Date, Action Date, Amount, Type &amp; Status per record
+                Action Date, Amount, Type &amp; Status per record
               </p>
             </div>
           </div>
@@ -772,7 +772,6 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
               <table className="w-full text-left text-xs">
                 <thead className={`${theadBg} font-bold border-b text-[10px] uppercase tracking-wider sticky top-0 z-10`}>
                   <tr>
-                    <th className="p-3">Request Date</th>
                     <th className="p-3">Action Date</th>
                     <th className="p-3 text-right">Amount</th>
                     <th className="p-3 text-center">Type</th>
@@ -782,7 +781,6 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
                 <tbody className={`divide-y ${tbodyBg} font-mono text-[11px]`}>
                   {rawFilteredRecords.map((r, idx) => (
                     <tr key={`${r.no}-${idx}`} className={isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/50'}>
-                      <td className="p-3">{r.requestDate || '-'}</td>
                       <td className="p-3">{r.actionDate || '-'}</td>
                       <td className="p-3 text-right font-bold">{formatTableAmountFull(r.amount)}</td>
                       <td className="p-3 text-center font-sans">
@@ -801,7 +799,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
                   ))}
                   {rawFilteredRecords.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="p-6 text-center text-slate-500">
+                      <td colSpan={4} className="p-6 text-center text-slate-500">
                         No records match the selected filters.
                       </td>
                     </tr>
