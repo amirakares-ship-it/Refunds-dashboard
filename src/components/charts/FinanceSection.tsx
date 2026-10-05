@@ -158,6 +158,25 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
     });
   }, [financeRecords, rawFilterCompany, rawFilterType, rawFilterStatus]);
 
+  // Group the filtered records by Action Date so the date shows once per group, not per row
+  const rawGroupedByDate = useMemo(() => {
+    const groups: Record<string, { date: string; records: RefundRecord[]; total: number }> = {};
+    rawFilteredRecords.forEach(r => {
+      const key = r.actionDate || 'No Action Date';
+      if (!groups[key]) {
+        groups[key] = { date: key, records: [], total: 0 };
+      }
+      groups[key].records.push(r);
+      groups[key].total += r.amount;
+    });
+    // ISO dates (YYYY-MM-DD) sort correctly as plain strings; push "No Action Date" to the end
+    return Object.values(groups).sort((a, b) => {
+      if (a.date === 'No Action Date') return 1;
+      if (b.date === 'No Action Date') return -1;
+      return a.date.localeCompare(b.date);
+    });
+  }, [rawFilteredRecords]);
+
   const tableChequeAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.cheque, 0), [tableCompanyData]);
   const tableCancelledAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.cancelled, 0), [tableCompanyData]);
   const tableTotalAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.total, 0), [tableCompanyData]);
@@ -779,23 +798,36 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
                   </tr>
                 </thead>
                 <tbody className={`divide-y ${tbodyBg} font-mono text-[11px]`}>
-                  {rawFilteredRecords.map((r, idx) => (
-                    <tr key={`${r.no}-${idx}`} className={isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/50'}>
-                      <td className="p-3">{r.actionDate || '-'}</td>
-                      <td className="p-3 text-right font-bold">{formatTableAmountFull(r.amount)}</td>
-                      <td className="p-3 text-center font-sans">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            (r.type || '').toLowerCase() === 'default'
-                              ? 'bg-rose-500/20 text-rose-500'
-                              : 'bg-indigo-500/20 text-indigo-400'
-                          }`}
-                        >
-                          {r.type || '-'}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center font-sans">{r.status || '-'}</td>
-                    </tr>
+                  {rawGroupedByDate.map((group) => (
+                    <React.Fragment key={group.date}>
+                      {/* Date group header — shown once per Action Date */}
+                      <tr className={isLight ? 'bg-slate-100' : 'bg-slate-950'}>
+                        <td colSpan={4} className={`p-2.5 font-sans font-extrabold text-[11px] ${isLight ? 'text-slate-800' : 'text-slate-200'} border-t ${isLight ? 'border-slate-300' : 'border-slate-700'}`}>
+                          {group.date}
+                          <span className="font-normal text-slate-500 ml-2">
+                            ({group.records.length} {group.records.length === 1 ? 'record' : 'records'} | {formatTableAmountFull(group.total)})
+                          </span>
+                        </td>
+                      </tr>
+                      {group.records.map((r, idx) => (
+                        <tr key={`${r.no}-${idx}`} className={isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/50'}>
+                          <td className="p-3"></td>
+                          <td className="p-3 text-right font-bold">{formatTableAmountFull(r.amount)}</td>
+                          <td className="p-3 text-center font-sans">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                (r.type || '').toLowerCase() === 'default'
+                                  ? 'bg-rose-500/20 text-rose-500'
+                                  : 'bg-indigo-500/20 text-indigo-400'
+                              }`}
+                            >
+                              {r.type || '-'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center font-sans">{r.status || '-'}</td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   ))}
                   {rawFilteredRecords.length === 0 && (
                     <tr>
