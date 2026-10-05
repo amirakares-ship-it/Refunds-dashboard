@@ -676,10 +676,10 @@ export default function App() {
         {(modalState.chartId === 'funds_vs_refunds_barchart' || modalState.chartId === 'funds_distribution_pie') && (
           <FundsSection records={filteredRecords} manualInputs={manualInputs} selectedCompany={filters.company} onOpenManualInputs={() => setIsManualInputOpen(true)} onExpandChart={() => {}} isLight={isLight} standaloneChartId={modalState.chartId} />
         )}
-        {(modalState.chartId === 'finance_company_exposure' || modalState.chartId === 'finance_cash_burn_trend' || modalState.chartId === 'finance_settlement_table') && (
+        {(modalState.chartId === 'finance_company_exposure' || modalState.chartId === 'finance_cash_burn_trend' || modalState.chartId === 'finance_settlement_table' || modalState.chartId === 'finance_cheques_table') && (
           <FinanceSection records={filteredRecords} manualInputs={manualInputs} selectedCompany={filters.company} onExpandChart={() => {}} isLight={isLight} standaloneChartId={modalState.chartId} />
         )}
-        {!['yearly_comparison', 'request_donut', 'amount_type_donut', 'default_funnel', 'company_pie', 'company_timeline', 'acceptance_waterfall', 'funds_vs_refunds_table', 'tenure_double_bar', 'cs_company_breakdown', 'cs_company_donut', 'cs_company_metrics_table', 'cs_company_feedback_full', 'funds_vs_refunds_barchart', 'funds_distribution_pie', 'finance_company_exposure', 'finance_cash_burn_trend', 'finance_settlement_table'].includes(modalState.chartId) && customization.chartConfigs.find(c => c.id === modalState.chartId) && (
+        {!['yearly_comparison', 'request_donut', 'amount_type_donut', 'default_funnel', 'company_pie', 'company_timeline', 'acceptance_waterfall', 'funds_vs_refunds_table', 'tenure_double_bar', 'cs_company_breakdown', 'cs_company_donut', 'cs_company_metrics_table', 'cs_company_feedback_full', 'funds_vs_refunds_barchart', 'funds_distribution_pie', 'finance_company_exposure', 'finance_cash_burn_trend', 'finance_settlement_table', 'finance_cheques_table'].includes(modalState.chartId) && customization.chartConfigs.find(c => c.id === modalState.chartId) && (
           <DynamicChartRenderer
             config={customization.chartConfigs.find(c => c.id === modalState.chartId)!}
             records={filteredRecords}
