@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { RefundRecord, ManualInputs } from '../../types';
 import { formatEGP, formatEGPFull, formatTableAmount, formatTableAmountFull, formatMonthLabel, parseMonthAndYear } from '../../utils/dataProcessor';
-import { DollarSign, CreditCard, Clock, CheckCircle2, TrendingUp, ShieldAlert, BarChart3, PieChart as PieIcon, FileSpreadsheet, Building2, Maximize2, Filter } from 'lucide-react';
+import { DollarSign, CreditCard, Clock, CheckCircle2, TrendingUp, ShieldAlert, BarChart3, PieChart as PieIcon, FileSpreadsheet, Building2, Maximize2, Filter, Eye, EyeOff } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, AreaChart, Area, LabelList } from 'recharts';
 
 interface FinanceSectionProps {
@@ -25,6 +25,12 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
   const [chart1Type, setChart1Type] = useState<'ALL' | 'default' | 'Request'>('ALL');
   const [chart2Type, setChart2Type] = useState<'ALL' | 'default' | 'Request'>('ALL');
   const [tableType, setTableType] = useState<'ALL' | 'default' | 'Request'>('ALL');
+
+  // Raw Records Explorer table — hidden by default, own Company/Type/Status filters
+  const [isRawTableVisible, setIsRawTableVisible] = useState(false);
+  const [rawFilterCompany, setRawFilterCompany] = useState('ALL');
+  const [rawFilterType, setRawFilterType] = useState<'ALL' | 'default' | 'Request'>('ALL');
+  const [rawFilterStatus, setRawFilterStatus] = useState('ALL');
 
   // Filter by Status: strictly ONLY 'Cancelled' and 'Cheque pending' (case-insensitive), excluding Reactive
   // And filter by company if selected
@@ -133,6 +139,24 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
     return Object.values(compMap);
   }, [tableRecords]);
 
+  // Raw Records Explorer — Company/Type/Status dropdown options & filtered rows
+  const companyOptions = useMemo(
+    () => Array.from(new Set(records.map(r => r.company).filter(Boolean))).sort(),
+    [records]
+  );
+  const statusOptions = useMemo(
+    () => Array.from(new Set(records.map(r => r.status).filter(Boolean))).sort(),
+    [records]
+  );
+  const rawFilteredRecords = useMemo(() => {
+    return records.filter(r => {
+      if (rawFilterCompany !== 'ALL' && r.company !== rawFilterCompany) return false;
+      if (rawFilterType !== 'ALL' && (r.type || '').toLowerCase() !== rawFilterType.toLowerCase()) return false;
+      if (rawFilterStatus !== 'ALL' && r.status !== rawFilterStatus) return false;
+      return true;
+    });
+  }, [records, rawFilterCompany, rawFilterType, rawFilterStatus]);
+
   const tableChequeAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.cheque, 0), [tableCompanyData]);
   const tableCancelledAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.cancelled, 0), [tableCompanyData]);
   const tableTotalAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.total, 0), [tableCompanyData]);
@@ -152,6 +176,9 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
   const tableBorder = isLight ? 'border-slate-200' : 'border-slate-800';
   const theadBg = isLight ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-950 text-slate-400 border-slate-800';
   const tbodyBg = isLight ? 'bg-white text-slate-700 divide-slate-200' : 'bg-slate-900 text-slate-300 divide-slate-800/60';
+  const selectClass = `text-[11px] font-semibold rounded-lg border px-2 py-1.5 outline-none cursor-pointer ${
+    isLight ? 'bg-white border-slate-300 text-slate-700' : 'bg-slate-950 border-slate-800 text-slate-200'
+  }`;
 
   const renderTypeFilter = (
     currentValue: 'ALL' | 'default' | 'Request',
@@ -668,6 +695,121 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
             </tfoot>
           </table>
         </div>
+      </div>
+
+      {/* Raw Records Explorer — hidden by default, own Company/Type/Status filters */}
+      <div className={`${cardBg} rounded-2xl p-5 border shadow-md`}>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 flex items-center justify-center">
+              <FileSpreadsheet className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                All Finance Records (Detailed)
+              </h3>
+              <p className={`text-[10px] uppercase tracking-wider font-semibold ${subTextColor}`}>
+                Request Date, Action Date, Amount, Type &amp; Status per record
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsRawTableVisible(prev => !prev)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+              isLight
+                ? 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+            }`}
+          >
+            {isRawTableVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {isRawTableVisible ? 'Hide table' : 'Show table'}
+          </button>
+        </div>
+
+        {isRawTableVisible && (
+          <>
+            {/* Company / Type / Status filters */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <select
+                value={rawFilterCompany}
+                onChange={(e) => setRawFilterCompany(e.target.value)}
+                className={selectClass}
+              >
+                <option value="ALL">All Companies</option>
+                {companyOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+
+              <select
+                value={rawFilterType}
+                onChange={(e) => setRawFilterType(e.target.value as 'ALL' | 'default' | 'Request')}
+                className={selectClass}
+              >
+                <option value="ALL">All Types</option>
+                <option value="default">Default</option>
+                <option value="Request">Request</option>
+              </select>
+
+              <select
+                value={rawFilterStatus}
+                onChange={(e) => setRawFilterStatus(e.target.value)}
+                className={selectClass}
+              >
+                <option value="ALL">All Statuses</option>
+                {statusOptions.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+
+              <span className={`text-[11px] font-semibold ml-auto ${subTextColor}`}>
+                {rawFilteredRecords.length} records
+              </span>
+            </div>
+
+            <div className={`overflow-x-auto overflow-y-auto max-h-[60vh] border ${tableBorder} rounded-xl`}>
+              <table className="w-full text-left text-xs">
+                <thead className={`${theadBg} font-bold border-b text-[10px] uppercase tracking-wider sticky top-0 z-10`}>
+                  <tr>
+                    <th className="p-3">Request Date</th>
+                    <th className="p-3">Action Date</th>
+                    <th className="p-3 text-right">Amount</th>
+                    <th className="p-3 text-center">Type</th>
+                    <th className="p-3 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${tbodyBg} font-mono text-[11px]`}>
+                  {rawFilteredRecords.map((r, idx) => (
+                    <tr key={`${r.no}-${idx}`} className={isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/50'}>
+                      <td className="p-3">{r.requestDate || '-'}</td>
+                      <td className="p-3">{r.actionDate || '-'}</td>
+                      <td className="p-3 text-right font-bold">{formatTableAmountFull(r.amount)}</td>
+                      <td className="p-3 text-center font-sans">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            (r.type || '').toLowerCase() === 'default'
+                              ? 'bg-rose-500/20 text-rose-500'
+                              : 'bg-indigo-500/20 text-indigo-400'
+                          }`}
+                        >
+                          {r.type || '-'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center font-sans">{r.status || '-'}</td>
+                    </tr>
+                  ))}
+                  {rawFilteredRecords.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="p-6 text-center text-slate-500">
+                        No records match the selected filters.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
