@@ -473,8 +473,8 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
                       {group.type}
                     </span>
                   </td>
-                  <td className="p-3.5 text-center">{group.count}</td>
-                  <td className="p-3.5 text-right font-bold">{formatTableAmountFull(group.total)}</td>
+                  <td className="p-3.5 text-center font-bold">{group.count}</td>
+                  <td className="p-3.5 text-right font-black text-base text-amber-500">{formatTableAmountFull(group.total)}</td>
                 </tr>
               ))}
               {rawGroupedByDate.length === 0 && (
@@ -491,7 +491,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
                   <td className="p-3.5 font-sans">Grand Total</td>
                   <td className="p-3.5 text-center"></td>
                   <td className="p-3.5 text-center font-mono">{rawGrandCount}</td>
-                  <td className="p-3.5 text-right font-mono text-amber-300 font-black">{formatTableAmountFull(rawGrandTotal)}</td>
+                  <td className="p-3.5 text-right font-mono text-amber-300 font-black text-base">{formatTableAmountFull(rawGrandTotal)}</td>
                 </tr>
               </tfoot>
             )}
@@ -920,8 +920,8 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
                           {group.type}
                         </span>
                       </td>
-                      <td className="p-3 text-center">{group.count}</td>
-                      <td className="p-3 text-right font-bold">{formatTableAmountFull(group.total)}</td>
+                      <td className="p-3 text-center font-bold">{group.count}</td>
+                      <td className="p-3 text-right font-black text-sm text-amber-500">{formatTableAmountFull(group.total)}</td>
                     </tr>
                   ))}
                   {rawGroupedByDate.length === 0 && (
@@ -938,7 +938,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
                       <td className="p-3 font-sans">Grand Total</td>
                       <td className="p-3 text-center"></td>
                       <td className="p-3 text-center font-mono">{rawGrandCount}</td>
-                      <td className="p-3 text-right font-mono text-amber-300 font-black">{formatTableAmountFull(rawGrandTotal)}</td>
+                      <td className="p-3 text-right font-mono text-amber-300 font-black text-sm">{formatTableAmountFull(rawGrandTotal)}</td>
                     </tr>
                   </tfoot>
                 )}
