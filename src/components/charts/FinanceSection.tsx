@@ -30,7 +30,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
   const [isRawTableVisible, setIsRawTableVisible] = useState(false);
   const [rawFilterCompany, setRawFilterCompany] = useState('ALL');
   const [rawFilterType, setRawFilterType] = useState<'ALL' | 'default' | 'Request'>('ALL');
-  const [rawFilterStatus, setRawFilterStatus] = useState('ALL');
+  const [rawFilterStatus, setRawFilterStatus] = useState('Cheque pending');
 
   // Filter by Status: strictly ONLY 'Cancelled' and 'Cheque pending' (case-insensitive), excluding Reactive
   // And filter by company if selected
@@ -140,22 +140,23 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
   }, [tableRecords]);
 
   // Raw Records Explorer — Company/Type/Status dropdown options & filtered rows
+  // Uses the same pool as the rest of Finance (Cancelled / Cheque pending only)
   const companyOptions = useMemo(
-    () => Array.from(new Set(records.map(r => r.company).filter(Boolean))).sort(),
-    [records]
+    () => Array.from(new Set(financeRecords.map(r => r.company).filter(Boolean))).sort(),
+    [financeRecords]
   );
   const statusOptions = useMemo(
-    () => Array.from(new Set(records.map(r => r.status).filter(Boolean))).sort(),
-    [records]
+    () => Array.from(new Set(financeRecords.map(r => r.status).filter(Boolean))).sort(),
+    [financeRecords]
   );
   const rawFilteredRecords = useMemo(() => {
-    return records.filter(r => {
+    return financeRecords.filter(r => {
       if (rawFilterCompany !== 'ALL' && r.company !== rawFilterCompany) return false;
       if (rawFilterType !== 'ALL' && (r.type || '').toLowerCase() !== rawFilterType.toLowerCase()) return false;
       if (rawFilterStatus !== 'ALL' && r.status !== rawFilterStatus) return false;
       return true;
     });
-  }, [records, rawFilterCompany, rawFilterType, rawFilterStatus]);
+  }, [financeRecords, rawFilterCompany, rawFilterType, rawFilterStatus]);
 
   const tableChequeAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.cheque, 0), [tableCompanyData]);
   const tableCancelledAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.cancelled, 0), [tableCompanyData]);
