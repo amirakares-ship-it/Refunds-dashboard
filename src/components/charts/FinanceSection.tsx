@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { RefundRecord, ManualInputs } from '../../types';
-import { formatEGP, formatEGPFull, formatTableAmount, formatTableAmountFull, formatMonthLabel } from '../../utils/dataProcessor';
+import { formatEGP, formatEGPFull, formatTableAmount, formatTableAmountFull, formatMonthLabel, parseMonthAndYear } from '../../utils/dataProcessor';
 import { DollarSign, CreditCard, Clock, CheckCircle2, TrendingUp, ShieldAlert, BarChart3, PieChart as PieIcon, FileSpreadsheet, Building2, Maximize2, Filter } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, AreaChart, Area, LabelList } from 'recharts';
 
@@ -85,11 +85,15 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
   }, [financeRecords, chart2Type]);
 
   const chart2MonthlyTrend = useMemo(() => {
-    const monthMap: Record<string, { month: string; defaultAmount: number; requestAmount: number; total: number }> = {};
+    const monthMap: Record<string, { month: string; sortKey: number; defaultAmount: number; requestAmount: number; total: number }> = {};
     chart2Records.forEach(r => {
-      const m = formatMonthLabel(r.actionDate || r.requestMonth || r.requestDate);
+      const rawDate = r.actionDate || r.requestMonth || r.requestDate;
+      const m = formatMonthLabel(rawDate);
       if (!monthMap[m]) {
-        monthMap[m] = { month: m, defaultAmount: 0, requestAmount: 0, total: 0 };
+        const parsed = parseMonthAndYear(rawDate);
+        // Chronological sort key: YYYYMM (falls back to 0 so unparseable dates sink to the start)
+        const sortKey = parsed ? (parsed.year || 0) * 100 + parsed.monthIndex : 0;
+        monthMap[m] = { month: m, sortKey, defaultAmount: 0, requestAmount: 0, total: 0 };
       }
       const isDef = (r.type || '').toLowerCase() === 'default';
       if (isDef) {
@@ -99,7 +103,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
       }
       monthMap[m].total += r.amount;
     });
-    return Object.values(monthMap).sort((a, b) => a.month.localeCompare(b.month));
+    return Object.values(monthMap).sort((a, b) => a.sortKey - b.sortKey);
   }, [chart2Records]);
 
   // Table (Financial Settlement Summary) Filtered Records & Aggregates
