@@ -87,7 +87,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
   const chart2MonthlyTrend = useMemo(() => {
     const monthMap: Record<string, { month: string; defaultAmount: number; requestAmount: number; total: number }> = {};
     chart2Records.forEach(r => {
-      const m = formatMonthLabel(r.requestMonth || r.requestDate);
+      const m = formatMonthLabel(r.actionDate || r.requestMonth || r.requestDate);
       if (!monthMap[m]) {
         monthMap[m] = { month: m, defaultAmount: 0, requestAmount: 0, total: 0 };
       }
