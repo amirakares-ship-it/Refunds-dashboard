@@ -182,6 +182,9 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
     });
   }, [rawFilteredRecords]);
 
+  const rawGrandTotal = useMemo(() => rawGroupedByDate.reduce((sum, g) => sum + g.total, 0), [rawGroupedByDate]);
+  const rawGrandCount = useMemo(() => rawGroupedByDate.reduce((sum, g) => sum + g.count, 0), [rawGroupedByDate]);
+
   const tableChequeAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.cheque, 0), [tableCompanyData]);
   const tableCancelledAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.cancelled, 0), [tableCompanyData]);
   const tableTotalAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.total, 0), [tableCompanyData]);
@@ -409,6 +412,89 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
                 <td className="p-3.5 text-center font-mono">100%</td>
               </tr>
             </tfoot>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  if (standaloneChartId === 'finance_cheques_table') {
+    return (
+      <div className={`${cardBg} rounded-2xl p-6 border shadow-lg w-full h-full flex flex-col space-y-4 animate-fadeIn`}>
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-700/40">
+          <div>
+            <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              #Cheques
+            </h3>
+            <p className={`text-xs ${subTextColor}`}>Total Amount grouped by Action Date &amp; Type</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select value={rawFilterCompany} onChange={(e) => setRawFilterCompany(e.target.value)} className={selectClass}>
+              <option value="ALL">All Companies</option>
+              {companyOptions.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <select value={rawFilterType} onChange={(e) => setRawFilterType(e.target.value as 'ALL' | 'default' | 'Request')} className={selectClass}>
+              <option value="ALL">All Types</option>
+              <option value="default">Default</option>
+              <option value="Request">Request</option>
+            </select>
+            <select value={rawFilterStatus} onChange={(e) => setRawFilterStatus(e.target.value)} className={selectClass}>
+              <option value="ALL">All Statuses</option>
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className={`overflow-x-auto overflow-y-auto flex-1 border ${tableBorder} rounded-xl`}>
+          <table className="w-full text-left text-sm">
+            <thead className={`${theadBg} font-bold border-b text-xs uppercase tracking-wider sticky top-0 z-10`}>
+              <tr>
+                <th className="p-3.5">Action Date</th>
+                <th className="p-3.5 text-center">Type</th>
+                <th className="p-3.5 text-center">Records</th>
+                <th className="p-3.5 text-right">Total Amount</th>
+              </tr>
+            </thead>
+            <tbody className={`divide-y ${tbodyBg} font-mono text-sm`}>
+              {rawGroupedByDate.map((group) => (
+                <tr key={`${group.date}||${group.type}`} className={isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/50'}>
+                  <td className={`p-3.5 font-sans font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{group.date}</td>
+                  <td className="p-3.5 text-center font-sans">
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                        group.type.toLowerCase() === 'default'
+                          ? 'bg-rose-500/20 text-rose-500'
+                          : 'bg-indigo-500/20 text-indigo-400'
+                      }`}
+                    >
+                      {group.type}
+                    </span>
+                  </td>
+                  <td className="p-3.5 text-center">{group.count}</td>
+                  <td className="p-3.5 text-right font-bold">{formatTableAmountFull(group.total)}</td>
+                </tr>
+              ))}
+              {rawGroupedByDate.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-6 text-center text-slate-500">
+                    No records match the selected filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            {rawGroupedByDate.length > 0 && (
+              <tfoot className={`${isLight ? 'bg-slate-900 text-white' : 'bg-slate-950 text-white'} font-bold text-sm border-t`}>
+                <tr>
+                  <td className="p-3.5 font-sans">Grand Total</td>
+                  <td className="p-3.5 text-center"></td>
+                  <td className="p-3.5 text-center font-mono">{rawGrandCount}</td>
+                  <td className="p-3.5 text-right font-mono text-amber-300 font-black">{formatTableAmountFull(rawGrandTotal)}</td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
@@ -724,31 +810,48 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
 
       {/* Raw Records Explorer — hidden by default, own Company/Type/Status filters */}
       <div className={`${cardBg} rounded-2xl p-5 border shadow-md`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 flex items-center justify-center">
-              <FileSpreadsheet className="w-4 h-4" />
+        <div className={`flex flex-wrap items-center gap-2 mb-4 ${isRawTableVisible ? 'justify-between' : 'justify-end'}`}>
+          {isRawTableVisible && (
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 flex items-center justify-center">
+                <FileSpreadsheet className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  #Cheques
+                </h3>
+                <p className={`text-[10px] uppercase tracking-wider font-semibold ${subTextColor}`}>
+                  Total Amount grouped by Action Date &amp; Type
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                All Finance Records (Detailed)
-              </h3>
-              <p className={`text-[10px] uppercase tracking-wider font-semibold ${subTextColor}`}>
-                Total Amount grouped by Action Date &amp; Type
-              </p>
-            </div>
+          )}
+          <div className="flex items-center gap-2">
+            {isRawTableVisible && onExpandChart && (
+              <button
+                onClick={() => onExpandChart('finance_cheques_table', '#Cheques', 'Total Amount grouped by Action Date & Type')}
+                title="Full screen"
+                className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                  isLight
+                    ? 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'
+                    : 'bg-slate-900 text-slate-400 border-slate-700 hover:bg-slate-800'
+                }`}
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
+              onClick={() => setIsRawTableVisible(prev => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                isLight
+                  ? 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+              }`}
+            >
+              {isRawTableVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {isRawTableVisible ? 'Hide table' : 'Show table'}
+            </button>
           </div>
-          <button
-            onClick={() => setIsRawTableVisible(prev => !prev)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-              isLight
-                ? 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
-                : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
-            }`}
-          >
-            {isRawTableVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            {isRawTableVisible ? 'Hide table' : 'Show table'}
-          </button>
         </div>
 
         {isRawTableVisible && (
@@ -829,6 +932,16 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
                     </tr>
                   )}
                 </tbody>
+                {rawGroupedByDate.length > 0 && (
+                  <tfoot className={`${isLight ? 'bg-slate-900 text-white' : 'bg-slate-950 text-white'} font-bold text-[11px] border-t`}>
+                    <tr>
+                      <td className="p-3 font-sans">Grand Total</td>
+                      <td className="p-3 text-center"></td>
+                      <td className="p-3 text-center font-mono">{rawGrandCount}</td>
+                      <td className="p-3 text-right font-mono text-amber-300 font-black">{formatTableAmountFull(rawGrandTotal)}</td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </>
