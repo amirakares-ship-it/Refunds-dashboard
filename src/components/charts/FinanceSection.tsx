@@ -31,6 +31,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
   const [rawFilterCompany, setRawFilterCompany] = useState('ALL');
   const [rawFilterType, setRawFilterType] = useState<'ALL' | 'default' | 'Request'>('ALL');
   const [rawFilterStatus, setRawFilterStatus] = useState('Cheque pending');
+  const [rawAgingFilter, setRawAgingFilter] = useState<'ALL' | 'fresh' | 'mid' | 'overdue'>('ALL');
 
   // Filter by Status: strictly ONLY 'Cancelled' and 'Cheque pending' (case-insensitive), excluding Reactive
   // And filter by company if selected
@@ -149,31 +150,43 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
     () => Array.from(new Set(financeRecords.map(r => r.status).filter(Boolean))).sort(),
     [financeRecords]
   );
+  // Which aging bucket a record's Action Date falls into, relative to today. null = no valid date.
+  const getAgingBucket = (r: RefundRecord): 'fresh' | 'mid' | 'overdue' | null => {
+    const actionTime = r.actionDate ? new Date(r.actionDate).getTime() : NaN;
+    if (isNaN(actionTime)) return null;
+    const days = Math.floor((Date.now() - actionTime) / 86400000);
+    return days <= 30 ? 'fresh' : days <= 60 ? 'mid' : 'overdue';
+  };
+
   const rawFilteredRecords = useMemo(() => {
     return financeRecords.filter(r => {
       if (rawFilterCompany !== 'ALL' && r.company !== rawFilterCompany) return false;
       if (rawFilterType !== 'ALL' && (r.type || '').toLowerCase() !== rawFilterType.toLowerCase()) return false;
       if (rawFilterStatus !== 'ALL' && r.status !== rawFilterStatus) return false;
+      if (rawAgingFilter !== 'ALL' && getAgingBucket(r) !== rawAgingFilter) return false;
       return true;
     });
-  }, [financeRecords, rawFilterCompany, rawFilterType, rawFilterStatus]);
+  }, [financeRecords, rawFilterCompany, rawFilterType, rawFilterStatus, rawAgingFilter]);
 
-  // Aggregate by Action Date + Type: one row per (date, type) pair with the
-  // total amount. The date only repeats when more than one Type exists for it.
+  // Aggregate by Company + Action Date + Type: one row per combination, with the
+  // total amount — so it's clear exactly which company each delayed cheque belongs to.
   const rawGroupedByDate = useMemo(() => {
-    const groups: Record<string, { date: string; type: string; total: number; count: number }> = {};
+    const groups: Record<string, { company: string; date: string; type: string; total: number; count: number }> = {};
     rawFilteredRecords.forEach(r => {
+      const company = r.company || 'Unknown';
       const date = r.actionDate || 'No Action Date';
       const type = r.type || 'Unknown';
-      const key = `${date}||${type}`;
+      const key = `${company}||${date}||${type}`;
       if (!groups[key]) {
-        groups[key] = { date, type, total: 0, count: 0 };
+        groups[key] = { company, date, type, total: 0, count: 0 };
       }
       groups[key].total += r.amount;
       groups[key].count += 1;
     });
     // ISO dates (YYYY-MM-DD) sort correctly as plain strings; push "No Action Date" to the end
     return Object.values(groups).sort((a, b) => {
+      const companyCompare = a.company.localeCompare(b.company);
+      if (companyCompare !== 0) return companyCompare;
       if (a.date === 'No Action Date') return 1;
       if (b.date === 'No Action Date') return -1;
       const dateCompare = a.date.localeCompare(b.date);
@@ -184,6 +197,27 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
 
   const rawGrandTotal = useMemo(() => rawGroupedByDate.reduce((sum, g) => sum + g.total, 0), [rawGroupedByDate]);
   const rawGrandCount = useMemo(() => rawGroupedByDate.reduce((sum, g) => sum + g.count, 0), [rawGroupedByDate]);
+
+  // Aging analysis for Cheque Pending records — always based on pending status
+  // (independent of the Status dropdown) so it's meaningful even when another status is selected
+  const chequeAging = useMemo(() => {
+    const buckets = {
+      fresh: { label: '0-30 Days', count: 0, total: 0 },
+      mid: { label: '31-60 Days', count: 0, total: 0 },
+      overdue: { label: 'Over 60 Days', count: 0, total: 0 },
+    };
+    financeRecords
+      .filter(r => (r.status || '').toLowerCase().includes('cheque'))
+      .filter(r => rawFilterCompany === 'ALL' || r.company === rawFilterCompany)
+      .filter(r => rawFilterType === 'ALL' || (r.type || '').toLowerCase() === rawFilterType.toLowerCase())
+      .forEach(r => {
+        const key = getAgingBucket(r);
+        if (!key) return;
+        buckets[key].count += 1;
+        buckets[key].total += r.amount;
+      });
+    return buckets;
+  }, [financeRecords, rawFilterCompany, rawFilterType]);
 
   const tableChequeAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.cheque, 0), [tableCompanyData]);
   const tableCancelledAmount = useMemo(() => tableCompanyData.reduce((sum, c) => sum + c.cancelled, 0), [tableCompanyData]);
@@ -448,10 +482,67 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
             </select>
           </div>
         </div>
+
+        {/* Cheque Pending Aging Analysis */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {(
+            [
+              {
+                key: 'fresh' as const,
+                icon: CheckCircle2,
+                card: isLight ? 'bg-emerald-50 border-emerald-200' : 'bg-emerald-950/20 border-emerald-900/40',
+                iconWrap: 'bg-emerald-500/15 text-emerald-500',
+                label: 'text-emerald-600 dark:text-emerald-400',
+              },
+              {
+                key: 'mid' as const,
+                icon: Clock,
+                card: isLight ? 'bg-amber-50 border-amber-200' : 'bg-amber-950/20 border-amber-900/40',
+                iconWrap: 'bg-amber-500/15 text-amber-500',
+                label: 'text-amber-600 dark:text-amber-400',
+              },
+              {
+                key: 'overdue' as const,
+                icon: ShieldAlert,
+                card: isLight ? 'bg-rose-50 border-rose-200' : 'bg-rose-950/20 border-rose-900/40',
+                iconWrap: 'bg-rose-500/15 text-rose-500',
+                label: 'text-rose-600 dark:text-rose-400',
+              },
+            ]
+          ).map(({ key, icon: Icon, card, iconWrap, label }) => {
+            const b = chequeAging[key];
+            const isActive = rawAgingFilter === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setRawAgingFilter(prev => (prev === key ? 'ALL' : key))}
+                className={`text-left rounded-xl p-3.5 border flex items-center gap-3 cursor-pointer transition-all ${card} ${
+                  isActive ? 'ring-2 ring-offset-1 ring-indigo-500' : 'hover:opacity-80'
+                } ${isLight ? 'ring-offset-white' : 'ring-offset-slate-900'}`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${iconWrap}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className={`text-[11px] font-bold uppercase tracking-wider ${label}`}>
+                    {b.label}
+                  </p>
+                  <p className={`text-base font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    {formatTableAmountFull(b.total)}
+                    <span className={`text-xs font-semibold ml-1 ${subTextColor}`}>({b.count})</span>
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
         <div className={`overflow-x-auto overflow-y-auto flex-1 border ${tableBorder} rounded-xl`}>
           <table className="w-full text-left text-sm">
             <thead className={`${theadBg} font-bold border-b text-xs uppercase tracking-wider sticky top-0 z-10`}>
               <tr>
+                <th className="p-3.5">Company</th>
                 <th className="p-3.5">Action Date</th>
                 <th className="p-3.5 text-center">Type</th>
                 <th className="p-3.5 text-center">Records</th>
@@ -460,7 +551,8 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
             </thead>
             <tbody className={`divide-y ${tbodyBg} font-mono text-sm`}>
               {rawGroupedByDate.map((group) => (
-                <tr key={`${group.date}||${group.type}`} className={isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/50'}>
+                <tr key={`${group.company}||${group.date}||${group.type}`} className={isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/50'}>
+                  <td className="p-3.5 font-sans font-bold text-blue-500">{group.company}</td>
                   <td className={`p-3.5 font-sans font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{group.date}</td>
                   <td className="p-3.5 text-center font-sans">
                     <span
@@ -479,7 +571,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
               ))}
               {rawGroupedByDate.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="p-6 text-center text-slate-500">
+                  <td colSpan={5} className="p-6 text-center text-slate-500">
                     No records match the selected filters.
                   </td>
                 </tr>
@@ -488,7 +580,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
             {rawGroupedByDate.length > 0 && (
               <tfoot className={`${isLight ? 'bg-slate-900 text-white' : 'bg-slate-950 text-white'} font-bold text-sm border-t`}>
                 <tr>
-                  <td className="p-3.5 font-sans">Grand Total</td>
+                  <td className="p-3.5 font-sans" colSpan={2}>Grand Total</td>
                   <td className="p-3.5 text-center"></td>
                   <td className="p-3.5 text-center font-mono">{rawGrandCount}</td>
                   <td className="p-3.5 text-right font-mono text-amber-300 font-black text-base">{formatTableAmountFull(rawGrandTotal)}</td>
@@ -856,6 +948,61 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
 
         {isRawTableVisible && (
           <>
+            {/* Cheque Pending Aging Analysis */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              {(
+                [
+                  {
+                    key: 'fresh' as const,
+                    icon: CheckCircle2,
+                    card: isLight ? 'bg-emerald-50 border-emerald-200' : 'bg-emerald-950/20 border-emerald-900/40',
+                    iconWrap: 'bg-emerald-500/15 text-emerald-500',
+                    label: 'text-emerald-600 dark:text-emerald-400',
+                  },
+                  {
+                    key: 'mid' as const,
+                    icon: Clock,
+                    card: isLight ? 'bg-amber-50 border-amber-200' : 'bg-amber-950/20 border-amber-900/40',
+                    iconWrap: 'bg-amber-500/15 text-amber-500',
+                    label: 'text-amber-600 dark:text-amber-400',
+                  },
+                  {
+                    key: 'overdue' as const,
+                    icon: ShieldAlert,
+                    card: isLight ? 'bg-rose-50 border-rose-200' : 'bg-rose-950/20 border-rose-900/40',
+                    iconWrap: 'bg-rose-500/15 text-rose-500',
+                    label: 'text-rose-600 dark:text-rose-400',
+                  },
+                ]
+              ).map(({ key, icon: Icon, card, iconWrap, label }) => {
+                const b = chequeAging[key];
+                const isActive = rawAgingFilter === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setRawAgingFilter(prev => (prev === key ? 'ALL' : key))}
+                    className={`text-left rounded-xl p-3 border flex items-center gap-3 cursor-pointer transition-all ${card} ${
+                      isActive ? 'ring-2 ring-offset-1 ring-indigo-500' : 'hover:opacity-80'
+                    } ${isLight ? 'ring-offset-white' : 'ring-offset-slate-900'}`}
+                  >
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${iconWrap}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`text-[10px] font-bold uppercase tracking-wider ${label}`}>
+                        {b.label}
+                      </p>
+                      <p className={`text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {formatTableAmountFull(b.total)}
+                        <span className={`text-[10px] font-semibold ml-1 ${subTextColor}`}>({b.count})</span>
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Company / Type / Status filters */}
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <select
@@ -899,6 +1046,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
               <table className="w-full text-left text-xs">
                 <thead className={`${theadBg} font-bold border-b text-[10px] uppercase tracking-wider sticky top-0 z-10`}>
                   <tr>
+                    <th className="p-3">Company</th>
                     <th className="p-3">Action Date</th>
                     <th className="p-3 text-center">Type</th>
                     <th className="p-3 text-center">Records</th>
@@ -907,7 +1055,8 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
                 </thead>
                 <tbody className={`divide-y ${tbodyBg} font-mono text-[11px]`}>
                   {rawGroupedByDate.map((group) => (
-                    <tr key={`${group.date}||${group.type}`} className={isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/50'}>
+                    <tr key={`${group.company}||${group.date}||${group.type}`} className={isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/50'}>
+                      <td className="p-3 font-sans font-bold text-blue-500">{group.company}</td>
                       <td className={`p-3 font-sans font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{group.date}</td>
                       <td className="p-3 text-center font-sans">
                         <span
@@ -926,7 +1075,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
                   ))}
                   {rawGroupedByDate.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="p-6 text-center text-slate-500">
+                      <td colSpan={5} className="p-6 text-center text-slate-500">
                         No records match the selected filters.
                       </td>
                     </tr>
@@ -935,7 +1084,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
                 {rawGroupedByDate.length > 0 && (
                   <tfoot className={`${isLight ? 'bg-slate-900 text-white' : 'bg-slate-950 text-white'} font-bold text-[11px] border-t`}>
                     <tr>
-                      <td className="p-3 font-sans">Grand Total</td>
+                      <td className="p-3 font-sans" colSpan={2}>Grand Total</td>
                       <td className="p-3 text-center"></td>
                       <td className="p-3 text-center font-mono">{rawGrandCount}</td>
                       <td className="p-3 text-right font-mono text-amber-300 font-black text-sm">{formatTableAmountFull(rawGrandTotal)}</td>
