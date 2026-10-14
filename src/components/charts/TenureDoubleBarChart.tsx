@@ -37,7 +37,13 @@ export const TenureDoubleBarChart: React.FC<TenureDoubleBarChartProps> = ({
   // In-card Filters: Company, Type, and Acceptance Month
   const [selectedCompany, setSelectedCompany] = useState<string>('ALL');
   const [selectedType, setSelectedType] = useState<string>('ALL');
-  const [selectedAcceptanceMonth, setSelectedAcceptanceMonth] = useState<string>('ALL');
+  // Acceptance months are multi-select (checkboxes shown inline in the filter bar).
+  // An empty list means "All Months" (no filter).
+  const [selectedAcceptanceMonths, setSelectedAcceptanceMonths] = useState<string[]>([]);
+
+  const toggleAcceptanceMonth = (m: string) => {
+    setSelectedAcceptanceMonths(prev => (prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]));
+  };
 
   // Discover available companies dynamically
   const availableCompanies = useMemo(() => {
@@ -89,8 +95,8 @@ export const TenureDoubleBarChart: React.FC<TenureDoubleBarChartProps> = ({
 
   // Calculate Tenure Distribution
   const { clusters, grandTotalCount, grandTotalAmount } = useMemo(() => {
-    return calculateTenureDistribution(records, selectedCompany, selectedType, selectedAcceptanceMonth);
-  }, [records, selectedCompany, selectedType, selectedAcceptanceMonth]);
+    return calculateTenureDistribution(records, selectedCompany, selectedType, selectedAcceptanceMonths);
+  }, [records, selectedCompany, selectedType, selectedAcceptanceMonths]);
 
   const title = customTitle ?? 'Member Tenure & Days Distribution';
   const description = customDescription ?? 'Duration between Acceptance Date & Request Date in months (<1m, 1-3m, 3-6m, 6-12m, 1 Year, 2 Years, 3+ Years)';
@@ -133,7 +139,7 @@ export const TenureDoubleBarChart: React.FC<TenureDoubleBarChartProps> = ({
     );
   }, [clusters]);
 
-  const hasActiveFilters = selectedCompany !== 'ALL' || selectedType !== 'ALL' || selectedAcceptanceMonth !== 'ALL';
+  const hasActiveFilters = selectedCompany !== 'ALL' || selectedType !== 'ALL' || selectedAcceptanceMonths.length > 0;
   const chartHeightClass = isFullscreen ? 'h-[320px] sm:h-[350px] md:h-[380px]' : 'h-64 sm:h-72';
 
   return (
@@ -246,31 +252,58 @@ export const TenureDoubleBarChart: React.FC<TenureDoubleBarChartProps> = ({
           isLight ? 'bg-slate-50/90 border-slate-200' : 'bg-slate-950/70 border-slate-800'
         }`}>
           <div className="flex flex-wrap items-center gap-3">
-            {/* Acceptance Month Filter */}
-            <div className="flex items-center gap-1.5">
-              <span className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+            {/* Acceptance Month Filter — inline checkboxes (multi-select), on its own row */}
+            <div className="flex flex-wrap items-start gap-2 w-full">
+              <span className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 pt-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
                 <Calendar className="w-3 h-3 text-emerald-500" />
                 Acceptance Month:
               </span>
-              <select
-                value={selectedAcceptanceMonth}
-                onChange={(e) => setSelectedAcceptanceMonth(e.target.value)}
+              <div
+                role="group"
                 aria-label="Filter by Acceptance Month"
-                className={`px-2.5 py-1 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors ${
-                  selectedAcceptanceMonth !== 'ALL'
-                    ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 font-bold'
-                    : isLight
-                    ? 'bg-white border-slate-200 text-slate-800'
-                    : 'bg-slate-900 border-slate-800 text-slate-200'
-                }`}
+                className={`flex flex-wrap items-center gap-1.5 flex-1 min-w-0 overflow-y-auto pr-1 ${isFullscreen ? 'max-h-28' : 'max-h-20'}`}
               >
-                <option value="ALL">All Months</option>
-                {availableAcceptanceMonths.map(m => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
+                <label
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-semibold cursor-pointer select-none transition-colors ${
+                    selectedAcceptanceMonths.length === 0
+                      ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 font-bold'
+                      : isLight
+                      ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedAcceptanceMonths.length === 0}
+                    onChange={() => setSelectedAcceptanceMonths([])}
+                    className="accent-emerald-500"
+                  />
+                  All Months
+                </label>
+                {availableAcceptanceMonths.map(m => {
+                  const checked = selectedAcceptanceMonths.includes(m);
+                  return (
+                    <label
+                      key={m}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-semibold cursor-pointer select-none transition-colors ${
+                        checked
+                          ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 font-bold'
+                          : isLight
+                          ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleAcceptanceMonth(m)}
+                        className="accent-emerald-500"
+                      />
+                      {m}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Company Filter */}
@@ -332,7 +365,7 @@ export const TenureDoubleBarChart: React.FC<TenureDoubleBarChartProps> = ({
               onClick={() => {
                 setSelectedCompany('ALL');
                 setSelectedType('ALL');
-                setSelectedAcceptanceMonth('ALL');
+                setSelectedAcceptanceMonths([]);
               }}
               className="flex items-center gap-1 text-[11px] font-semibold text-rose-500 hover:text-rose-600 transition-colors px-2 py-0.5 rounded-md hover:bg-rose-500/10"
               title="Reset Filters"
