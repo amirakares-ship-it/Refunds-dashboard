@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { RefundRecord } from '../../types';
 import { calculateTenureDistribution, parseMonthAndYear } from '../../utils/dataProcessor';
-import { Maximize2, Clock, Table as TableIcon, BarChart2, Filter, Building2, RotateCcw, Calendar } from 'lucide-react';
+import { Maximize2, Clock, Table as TableIcon, BarChart2, Filter, Building2, RotateCcw, Calendar, ChevronDown } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, LabelList } from 'recharts';
 
 interface TenureDoubleBarChartProps {
@@ -37,7 +37,41 @@ export const TenureDoubleBarChart: React.FC<TenureDoubleBarChartProps> = ({
   // In-card Filters: Company, Type, and Acceptance Month
   const [selectedCompany, setSelectedCompany] = useState<string>('ALL');
   const [selectedType, setSelectedType] = useState<string>('ALL');
-  const [selectedAcceptanceMonth, setSelectedAcceptanceMonth] = useState<string>('ALL');
+  // Acceptance months are multi-select, picked from a dropdown with a checkbox per month.
+  // An empty list means "All Months" (no filter).
+  const [selectedAcceptanceMonths, setSelectedAcceptanceMonths] = useState<string[]>([]);
+  const [isMonthMenuOpen, setIsMonthMenuOpen] = useState(false);
+  const monthMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close the month dropdown on outside click or Escape
+  useEffect(() => {
+    if (!isMonthMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (monthMenuRef.current && !monthMenuRef.current.contains(e.target as Node)) {
+        setIsMonthMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMonthMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMonthMenuOpen]);
+
+  const toggleAcceptanceMonth = (m: string) => {
+    setSelectedAcceptanceMonths(prev => (prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]));
+  };
+
+  const monthButtonLabel =
+    selectedAcceptanceMonths.length === 0
+      ? 'All Months'
+      : selectedAcceptanceMonths.length === 1
+      ? selectedAcceptanceMonths[0]
+      : `${selectedAcceptanceMonths.length} months selected`;
 
   // Discover available companies dynamically
   const availableCompanies = useMemo(() => {
@@ -89,8 +123,8 @@ export const TenureDoubleBarChart: React.FC<TenureDoubleBarChartProps> = ({
 
   // Calculate Tenure Distribution
   const { clusters, grandTotalCount, grandTotalAmount } = useMemo(() => {
-    return calculateTenureDistribution(records, selectedCompany, selectedType, selectedAcceptanceMonth);
-  }, [records, selectedCompany, selectedType, selectedAcceptanceMonth]);
+    return calculateTenureDistribution(records, selectedCompany, selectedType, selectedAcceptanceMonths);
+  }, [records, selectedCompany, selectedType, selectedAcceptanceMonths]);
 
   const title = customTitle ?? 'Member Tenure & Days Distribution';
   const description = customDescription ?? 'Duration between Acceptance Date & Request Date in months (<1m, 1-3m, 3-6m, 6-12m, 1 Year, 2 Years, 3+ Years)';
@@ -133,7 +167,7 @@ export const TenureDoubleBarChart: React.FC<TenureDoubleBarChartProps> = ({
     );
   }, [clusters]);
 
-  const hasActiveFilters = selectedCompany !== 'ALL' || selectedType !== 'ALL' || selectedAcceptanceMonth !== 'ALL';
+  const hasActiveFilters = selectedCompany !== 'ALL' || selectedType !== 'ALL' || selectedAcceptanceMonths.length > 0;
   const chartHeightClass = isFullscreen ? 'h-[320px] sm:h-[350px] md:h-[380px]' : 'h-64 sm:h-72';
 
   return (
@@ -246,31 +280,73 @@ export const TenureDoubleBarChart: React.FC<TenureDoubleBarChartProps> = ({
           isLight ? 'bg-slate-50/90 border-slate-200' : 'bg-slate-950/70 border-slate-800'
         }`}>
           <div className="flex flex-wrap items-center gap-3">
-            {/* Acceptance Month Filter */}
+            {/* Acceptance Month Filter — dropdown with a checkbox per month (multi-select) */}
             <div className="flex items-center gap-1.5">
               <span className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
                 <Calendar className="w-3 h-3 text-emerald-500" />
                 Acceptance Month:
               </span>
-              <select
-                value={selectedAcceptanceMonth}
-                onChange={(e) => setSelectedAcceptanceMonth(e.target.value)}
-                aria-label="Filter by Acceptance Month"
-                className={`px-2.5 py-1 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors ${
-                  selectedAcceptanceMonth !== 'ALL'
-                    ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 font-bold'
-                    : isLight
-                    ? 'bg-white border-slate-200 text-slate-800'
-                    : 'bg-slate-900 border-slate-800 text-slate-200'
-                }`}
-              >
-                <option value="ALL">All Months</option>
-                {availableAcceptanceMonths.map(m => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
+              <div className="relative" ref={monthMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsMonthMenuOpen(open => !open)}
+                  aria-label="Filter by Acceptance Month"
+                  aria-haspopup="listbox"
+                  aria-expanded={isMonthMenuOpen}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors ${
+                    selectedAcceptanceMonths.length > 0
+                      ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 font-bold'
+                      : isLight
+                      ? 'bg-white border-slate-200 text-slate-800'
+                      : 'bg-slate-900 border-slate-800 text-slate-200'
+                  }`}
+                >
+                  <span>{monthButtonLabel}</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform ${isMonthMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isMonthMenuOpen && (
+                  <div
+                    role="listbox"
+                    aria-multiselectable="true"
+                    className={`absolute left-0 top-full mt-1 z-30 w-52 rounded-xl border shadow-xl overflow-hidden ${
+                      isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900 border-slate-700 text-slate-200'
+                    }`}
+                  >
+                    <label
+                      className={`flex items-center gap-2 px-2.5 py-1.5 cursor-pointer font-bold border-b ${
+                        isLight ? 'border-slate-200 hover:bg-slate-50' : 'border-slate-800 hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedAcceptanceMonths.length === 0}
+                        onChange={() => setSelectedAcceptanceMonths([])}
+                        className="accent-emerald-500"
+                      />
+                      <span>All Months</span>
+                    </label>
+                    <div className="max-h-56 overflow-y-auto py-1">
+                      {availableAcceptanceMonths.map(m => (
+                        <label
+                          key={m}
+                          className={`flex items-center gap-2 px-2.5 py-1.5 cursor-pointer ${
+                            isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedAcceptanceMonths.includes(m)}
+                            onChange={() => toggleAcceptanceMonth(m)}
+                            className="accent-emerald-500"
+                          />
+                          <span>{m}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Company Filter */}
@@ -332,7 +408,8 @@ export const TenureDoubleBarChart: React.FC<TenureDoubleBarChartProps> = ({
               onClick={() => {
                 setSelectedCompany('ALL');
                 setSelectedType('ALL');
-                setSelectedAcceptanceMonth('ALL');
+                setSelectedAcceptanceMonths([]);
+                setIsMonthMenuOpen(false);
               }}
               className="flex items-center gap-1 text-[11px] font-semibold text-rose-500 hover:text-rose-600 transition-colors px-2 py-0.5 rounded-md hover:bg-rose-500/10"
               title="Reset Filters"
