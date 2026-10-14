@@ -990,8 +990,15 @@ export function calculateTenureDistribution(
   records: RefundRecord[],
   companyFilter: string = 'ALL',
   typeFilter: string = 'ALL',
-  acceptanceMonthFilter: string = 'ALL'
+  acceptanceMonthFilter: string | string[] = 'ALL'
 ): { clusters: TenureClusterResult[]; grandTotalCount: number; grandTotalAmount: number } {
+  // Acceptance month can be a single value ('ALL' / 'Jan 2025') or a list of months (multi-select).
+  // An empty list or one containing 'ALL' means "no acceptance month filter".
+  const monthFilters = (Array.isArray(acceptanceMonthFilter) ? acceptanceMonthFilter : [acceptanceMonthFilter])
+    .map(m => (m || '').trim().toLowerCase())
+    .filter(Boolean);
+  const filterByMonth = monthFilters.length > 0 && !monthFilters.includes('all');
+
   // Apply company, type, non-reactive, and acceptance month filters
   const filtered = records.filter(r => {
     if (r.reactive) return false;
@@ -1007,7 +1014,7 @@ export function calculateTenureDistribution(
       const t = (r.type || '').trim().toLowerCase();
       if (t !== typeFilter.toLowerCase()) return false;
     }
-    if (acceptanceMonthFilter !== 'ALL') {
+    if (filterByMonth) {
       const aDate = r.acceptanceDate || '';
       const parsed = parseMonthAndYear(aDate);
       const year = parsed?.year || r.acceptanceYear;
@@ -1022,18 +1029,16 @@ export function calculateTenureDistribution(
         monthYearStr = `${year}`;
       }
 
-      const cleanFilter = acceptanceMonthFilter.trim().toLowerCase();
       const cleanRecord = monthYearStr.toLowerCase();
 
-      if (cleanRecord !== cleanFilter) {
-        if (parsed && year && `${parsed.monthFull} ${year}`.toLowerCase() === cleanFilter) {
-          // match full name
-        } else if (parsed && parsed.monthShort.toLowerCase() === cleanFilter) {
-          // match month alone
-        } else {
-          return false;
-        }
-      }
+      // Keep the record if it matches ANY of the selected months
+      const matchesAny = monthFilters.some(cleanFilter => {
+        if (cleanRecord === cleanFilter) return true;
+        if (parsed && year && `${parsed.monthFull} ${year}`.toLowerCase() === cleanFilter) return true; // full name
+        if (parsed && parsed.monthShort.toLowerCase() === cleanFilter) return true; // month alone
+        return false;
+      });
+      if (!matchesAny) return false;
     }
     return true;
   });
