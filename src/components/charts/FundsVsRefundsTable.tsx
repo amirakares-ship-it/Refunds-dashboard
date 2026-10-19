@@ -47,7 +47,7 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
   );
   const [matrixType, setMatrixType] = useState<'ALL' | 'default' | 'Request'>('ALL');
   const [viewMode, setViewMode] = useState<'matrix' | 'multiCompany'>('matrix');
-  const [showOnlyPercentage, setShowOnlyPercentage] = useState(false);
+  const [showOnlyPercentage, setShowOnlyPercentage] = useState(true);
 
   // Keep synced if parent changes selectedCompany
   React.useEffect(() => {
@@ -416,7 +416,7 @@ export const FundsVsRefundsTable: React.FC<FundsVsRefundsTableProps> = ({
               }`}
             >
               <Percent className="w-3.5 h-3.5" />
-              {showOnlyPercentage ? 'إظهار Funds & Refunds' : 'إخفاء Funds & Refunds (% فقط)'}
+              {showOnlyPercentage ? 'Show Funds & Refunds' : 'Hide Funds & Refunds'}
             </button>
           </div>
 
