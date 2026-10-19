@@ -27,7 +27,7 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({
   const [tableType, setTableType] = useState<'ALL' | 'default' | 'Request'>('ALL');
 
   // Raw Records Explorer table — hidden by default, own Company/Type/Status filters
-  const [isRawTableVisible, setIsRawTableVisible] = useState(false);
+  const [isRawTableVisible, setIsRawTableVisible] = useState(true);
   const [rawFilterCompany, setRawFilterCompany] = useState('ALL');
   const [rawFilterType, setRawFilterType] = useState<'ALL' | 'default' | 'Request'>('ALL');
   const [rawFilterStatus, setRawFilterStatus] = useState('Cheque pending');
