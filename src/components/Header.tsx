@@ -203,6 +203,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right Action Tools: Filter Icon Popup & Admin Edit */}
           <div className="flex items-center gap-2.5">
+            {activeSection === 'cancellations' && <div id="cancellation-filter-slot" />}
             
             {/* Global Filter Icon Button (Opens on click) — hidden on the Cancellation Requests page, which has its own filters */}
             {activeSection !== 'cancellations' && (
