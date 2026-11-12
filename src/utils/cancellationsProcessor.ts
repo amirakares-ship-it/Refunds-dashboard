@@ -38,11 +38,11 @@ export interface CancellationRecord {
 
 export const UNSPECIFIED = 'غير محدد';
 
-/** A record counts as a "refund" when its status matches one of these. */
-export const REFUND_STATUS_KEYWORDS = ['cancel', 'delet', 'ملغ', 'إلغاء', 'الغاء', 'حذف'];
+/** A record counts as a "refund" only when its status is Cancelled (Deletion is NOT included). */
+export const REFUND_STATUS_KEYWORDS = ['cancel', 'ملغ', 'إلغاء', 'الغاء'];
 
-/** A membership is WDI when its type contains one of these. */
-export const WDI_KEYWORDS = ['wdi'];
+/** A membership is International (WDI) when its type contains one of these, or when its currency is not EGP. */
+export const WDI_KEYWORDS = ['wdi', 'international', 'دولي'];
 
 /** Payment-method grouping. First matching group wins (order matters). */
 export const PAYMENT_GROUPS: { group: string; keywords: string[] }[] = [
@@ -267,9 +267,24 @@ export function isRefundStatus(status: string): boolean {
   return !!s && REFUND_STATUS_KEYWORDS.some(k => s.includes(k));
 }
 
+/** Normalises currency spellings: ريال / SR / SAR -> SAR, جنيه / LE -> EGP, ... ('' stays '') */
+export function normalizeCurrency(raw: string): string {
+  const c = lc(raw).replace(/[.\s]/g, '');
+  if (!c) return '';
+  if (c.includes('sar') || c === 'sr' || c.includes('ريال') || c.includes('سعود')) return 'SAR';
+  if (c.includes('usd') || c.includes('دولار') || c === '$') return 'USD';
+  if (c.includes('egp') || c.includes('جني') || c === 'le' || c.includes('مصر')) return 'EGP';
+  if (c.includes('aed') || c.includes('درهم')) return 'AED';
+  if (c.includes('eur') || c.includes('يورو')) return 'EUR';
+  return raw.trim().toUpperCase();
+}
+
+/** International (WDI) membership: WDI/International type, or any currency other than EGP. */
 export function isWdi(r: CancellationRecord): boolean {
   const t = lc(r.membershipType);
-  return WDI_KEYWORDS.some(k => t.includes(k));
+  if (WDI_KEYWORDS.some(k => t.includes(k))) return true;
+  const cur = normalizeCurrency(r.currency);
+  return cur !== '' && cur !== 'EGP';
 }
 
 export function paymentGroupOf(method: string): string {
@@ -397,8 +412,10 @@ export interface CancellationKpis {
   totalRequests: number;
   statusCounts: { name: string; count: number }[];
   periodCounts: { name: string; count: number }[];
-  refundAmount: number; // EGP: Cancelled + Deletion, WDI excluded
-  refundCount: number;
+  refundAmount: number; // EGP: Cancelled only, International (WDI) excluded
+  companiesRefund: number; // part of refundAmount: رد للعميل (Companies)
+  remainingRefund: number; // refundAmount - companiesRefund
+  refundCount: number; // all non-international requests (any status)
   wdiByCurrency: { currency: string; amount: number; count: number }[];
   wdiCount: number;
 }
@@ -411,21 +428,26 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
   records.forEach(r => periodMap.set(label(r.periodClass), (periodMap.get(label(r.periodClass)) || 0) + 1));
 
   let refundAmount = 0;
+  let companiesRefund = 0;
   let refundCount = 0;
   const wdi = new Map<string, { amount: number; count: number }>();
   let wdiCount = 0;
 
+  // Counts include ALL requests (any status); amounts include Cancelled only.
   records.forEach(r => {
-    if (!isRefundStatus(r.status)) return;
+    const cancelled = isRefundStatus(r.status);
     if (isWdi(r)) {
-      const cur = label(r.currency);
+      const cur = normalizeCurrency(r.currency) || 'SAR';
       const e = wdi.get(cur) || { amount: 0, count: 0 };
-      e.amount += refundSum(r);
+      if (cancelled) e.amount += refundSum(r);
       e.count += 1;
       wdi.set(cur, e);
       wdiCount += 1;
     } else {
-      refundAmount += refundSum(r);
+      if (cancelled) {
+        refundAmount += refundSum(r);
+        companiesRefund += r.refundCompanies || 0;
+      }
       refundCount += 1;
     }
   });
@@ -436,6 +458,8 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
     statusCounts: Array.from(statusMap, ([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
     periodCounts: periodOrder.map(name => ({ name, count: periodMap.get(name) || 0 })),
     refundAmount,
+    companiesRefund,
+    remainingRefund: refundAmount - companiesRefund,
     refundCount,
     wdiByCurrency: Array.from(wdi, ([currency, v]) => ({ currency, ...v })).sort((a, b) => b.amount - a.amount),
     wdiCount,
@@ -522,7 +546,7 @@ export function requestTimeline(records: CancellationRecord[]) {
 export function periodDistribution(records: CancellationRecord[], order: string[]) {
   const map = new Map<string, number>();
   records.forEach(r => map.set(label(r.periodClass), (map.get(label(r.periodClass)) || 0) + 1));
-  return order.map(name => ({ name, count: map.get(name) || 0 }));
+  return order.map(name => ({ name: periodEn(name), count: map.get(name) || 0 }));
 }
 
 /* ---------------------------------------------------------------------
@@ -683,4 +707,47 @@ export function reasonClubHeatmap(records: CancellationRecord[], topN: number | 
     hiddenReasons: allReasons.length - reasons.length,
     total: records.length,
   };
+}
+
+/* ---------------------------------------------------------------------
+ *  Period labels in English (تصنيف فترة الاشتراك)
+ *  Add exact overrides here if a label is not translated correctly, e.g.
+ *  'أكثر من 3 سنوات': 'over 3 years'
+ * ------------------------------------------------------------------- */
+export const PERIOD_LABEL_OVERRIDES: Record<string, string> = {};
+
+export function periodEn(raw: string): string {
+  if (!raw || raw === UNSPECIFIED) return 'Unspecified';
+  if (PERIOD_LABEL_OVERRIDES[raw]) return PERIOD_LABEL_OVERRIDES[raw];
+  const t = toLatinDigits(raw).toLowerCase().replace(/[\u0640]/g, '');
+  if (/[a-z]/.test(t) && !/[\u0600-\u06FF]/.test(t)) return raw; // already English
+
+  let nums = (t.match(/\d+/g) || []).map(Number);
+  if (nums.length === 0) {
+    if (/سنتين|سنتان|عامين/.test(t)) nums = [2];
+    else if (/شهرين|شهران/.test(t)) nums = [2];
+    else if (/ثلاث|تلات/.test(t)) nums = [3];
+    else if (/ست(ة|ه)?\b|ستة/.test(t)) nums = [6];
+  }
+  const hasDay = /يوم|ايام|أيام|day/.test(t);
+  const hasMonth = /شهر|اشهر|أشهر|شهور|شهرين|month/.test(t);
+  const hasYear = /سنة|سنه|سنين|سنوات|سنتين|سنتان|عام|اعوام|أعوام|عامين|year/.test(t);
+  const over = /اكثر|أكثر|اكتر|أكتر|فوق|اعلى|أعلى|اكبر|أكبر|over|more|above|\+/.test(t);
+  const range = (a: number, b: number, u: string) => `${Math.min(a, b)}-${Math.max(a, b)} ${u}`;
+
+  if (hasMonth && hasYear && nums.length === 1) return `${nums[0]}-12 months`;
+  if (hasDay && !hasMonth && !hasYear) {
+    if (nums.length >= 2) return range(nums[0], nums[1], 'days');
+    if (nums.length === 1) return over ? `over ${nums[0]} days` : `${nums[0]} days`;
+  }
+  if (hasMonth && !hasYear) {
+    if (nums.length >= 2) return range(nums[0], nums[1], 'months');
+    if (nums.length === 1) return over ? `over ${nums[0]} months` : nums[0] === 1 ? '1 month' : `${nums[0]} months`;
+  }
+  if (hasYear && !hasMonth) {
+    const n = nums.length ? nums[nums.length - 1] : 1;
+    if (over) return `over ${n} years`;
+    return n === 1 ? 'year' : `${n} years`;
+  }
+  return raw;
 }

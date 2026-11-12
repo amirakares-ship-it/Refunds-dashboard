@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -6,7 +7,7 @@ import {
 import {
   AlertCircle, Banknote, CalendarClock, CheckCircle2, CircleDollarSign, FileSpreadsheet, Filter,
   Globe2, Hash, Landmark, Layers, ListChecks, Loader2, Maximize2, MessageSquareText, PieChart as PieIcon,
-  RotateCcw, Scale, ShieldAlert, ShieldCheck, TrendingUp, Upload, X, LayoutGrid, ArrowUp, ArrowDown, Minus,
+  RotateCcw, Scale, ShieldAlert, ShieldCheck, TrendingUp, Upload, X, LayoutGrid,
 } from 'lucide-react';
 import { ChartModal } from './ChartModal';
 import { ChartModalState } from '../types';
@@ -15,7 +16,7 @@ import {
   applyChartFilter, buildFilterOptions, calculateCancellationKpis, clubDistribution, filterCancellations,
   fmtMoney, fmtNum, fmtShort, paletteColor, parseCancellationWorkbook, paymentBreakdown,
   periodDistribution, reasonDistribution, requestTimeline,
-  decisionStats, exceptionStats, monthComparison, pctChange, reasonClubHeatmap, monthLabel,
+  decisionStats, exceptionStats, reasonClubHeatmap, periodEn,
 } from '../utils/cancellationsProcessor';
 import { loadCancellations, loadLocalCancellations, saveCancellations } from '../utils/cancellationsStore';
 
@@ -287,6 +288,9 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
   const [fileName, setFileName] = useState<string | null>(() => loadLocalCancellations().fileName);
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterSlot, setFilterSlot] = useState<HTMLElement | null>(null);
+  const filterWrapRef = useRef<HTMLDivElement>(null);
   const [filters, setFilters] = useState<CancellationFilters>(DEFAULT_CANCELLATION_FILTERS);
   const [modal, setModal] = useState<ChartModalState>({ isOpen: false, title: '', chartId: '' });
 
@@ -303,6 +307,19 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
   const [exMetric, setExMetric] = useState<'both' | 'count' | 'amount'>('both');
   const [heatMode, setHeatMode] = useState<'top10' | 'all'>('top10');
 
+  // The filter icon lives in the app header (next to the presentation icon) — rendered through a portal.
+  useEffect(() => {
+    setFilterSlot(document.getElementById('cancellation-filter-slot'));
+  }, []);
+  useEffect(() => {
+    if (!filterOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (filterWrapRef.current && !filterWrapRef.current.contains(e.target as Node)) setFilterOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [filterOpen]);
+
   useEffect(() => {
     loadCancellations()
       .then(s => {
@@ -318,7 +335,6 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
   const periodOrder = options.periods;
   const filtered = useMemo(() => filterCancellations(records, filters), [records, filters]);
   const kpis = useMemo(() => calculateCancellationKpis(filtered), [filtered]);
-  const monthCmp = useMemo(() => monthComparison(filtered), [filtered]);
 
   const activeFilterCount = Object.values(filters).filter(v => v !== 'ALL').length;
   const setF = (k: keyof CancellationFilters) => (v: string) => setFilters(p => ({ ...p, [k]: v }));
@@ -861,77 +877,111 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
           </div>
         } />
 
-      {/* ------------------------- Filters (whole page) ------------------------- */}
-      <div className={`rounded-2xl border p-4 ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-          <span className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-            <Filter className="w-3.5 h-3.5 text-indigo-500" /> Filters
+      {/* Filters (whole page): icon in the header next to the presentation icon, opens on click */}
+      {filterSlot && createPortal(
+        <div className="relative" ref={filterWrapRef}>
+          <button
+            onClick={() => setFilterOpen(o => !o)}
+            className={`relative flex items-center justify-center w-9 h-9 rounded-xl border transition-all cursor-pointer shadow-xs ${
+              filterOpen || activeFilterCount > 0
+                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/30'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+            }`}
+            title={activeFilterCount > 0 ? `${activeFilterCount} Active Filters` : 'Filter Dashboard'}
+            aria-label="Toggle Dashboard Filters"
+          >
+            <Filter className="w-4 h-4" />
             {activeFilterCount > 0 && (
-              <span className="ml-1 w-5 h-5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black flex items-center justify-center">{activeFilterCount}</span>
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-slate-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-xs">
+                {activeFilterCount}
+              </span>
             )}
-          </span>
-          <Select label="Payment method:" value={filters.payment} onChange={setF('payment')} isLight={isLight}>{paymentOptionsEls}</Select>
-          <Select label="Club:" value={filters.club} onChange={setF('club')} isLight={isLight}>{clubOptionsEls}</Select>
-          <Select label="Year (approval):" value={filters.year} onChange={setF('year')} isLight={isLight}>
-            <option value="ALL">All</option>
-            {options.years.map(y => <option key={y} value={y}>{y}</option>)}
-          </Select>
-          <Select label="Type:" value={filters.type} onChange={setF('type')} isLight={isLight}>
-            <option value="ALL">All</option>
-            {options.types.map(t => <option key={t} value={t}>{t}</option>)}
-          </Select>
-          <Select label="Period:" value={filters.period} onChange={setF('period')} isLight={isLight}>
-            <option value="ALL">All</option>
-            {options.periods.map(p => <option key={p} value={p}>{p}</option>)}
-          </Select>
-          {activeFilterCount > 0 && (
-            <button onClick={() => setFilters(DEFAULT_CANCELLATION_FILTERS)}
-              className="flex items-center gap-1 text-[11px] font-semibold text-rose-400 hover:text-rose-300 px-2 py-1 rounded hover:bg-rose-500/10 cursor-pointer">
-              <RotateCcw className="w-3 h-3" /> Reset
-            </button>
+          </button>
+
+          {filterOpen && (
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 p-4 rounded-2xl bg-slate-900 border border-slate-700/90 shadow-2xl shadow-black/80 z-50 text-xs text-slate-200 animate-fadeIn">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                    <Filter className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="font-bold text-sm text-white">Dashboard Filters</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {activeFilterCount > 0 && (
+                    <button onClick={() => setFilters(DEFAULT_CANCELLATION_FILTERS)}
+                      className="text-[11px] font-semibold text-rose-400 hover:text-rose-300 transition-colors flex items-center gap-1 px-2 py-0.5 rounded hover:bg-rose-500/10 cursor-pointer">
+                      <RotateCcw className="w-3 h-3" /> Reset
+                    </button>
+                  )}
+                  <button onClick={() => setFilterOpen(false)}
+                    className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="py-3 space-y-3.5">
+                {([
+                  ['Payment method', 'payment', paymentOptionsEls],
+                  ['Club', 'club', clubOptionsEls],
+                  ['Year (approval date)', 'year', <><option value="ALL">All</option>{options.years.map(y => <option key={y} value={y}>{y}</option>)}</>],
+                  ['Type', 'type', <><option value="ALL">All</option>{options.types.map(t => <option key={t} value={t}>{t}</option>)}</>],
+                  ['Period', 'period', <><option value="ALL">All</option>{options.periods.map(pd => <option key={pd} value={pd}>{periodEn(pd)}</option>)}</>],
+                ] as [string, keyof CancellationFilters, React.ReactNode][]).map(([lbl, key, opts]) => (
+                  <div key={key} className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{lbl}</label>
+                    <select value={filters[key]} onChange={e => setF(key)(e.target.value)} dir="auto"
+                      className={`w-full rounded-lg border px-2.5 py-1.5 text-xs font-semibold cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                        filters[key] !== 'ALL' ? 'bg-indigo-600/15 border-indigo-500/50 text-indigo-300' : 'bg-slate-950 border-slate-800 text-slate-200'
+                      }`}>
+                      {opts}
+                    </select>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-400">
+                Showing <strong className="text-white">{fmtNum(filtered.length)}</strong> of {fmtNum(records.length)} requests
+              </div>
+            </div>
           )}
-        </div>
-      </div>
+        </div>,
+        filterSlot
+      )}
 
       {/* ------------------------------ KPI cards ------------------------------ */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <KpiBox isLight={isLight} title="Count of All Requests" icon={<Hash className="w-3.5 h-3.5" />} accent="from-indigo-500 to-blue-500">
-          <div className={`text-3xl font-black tracking-tight ${kpiValue}`}>{fmtNum(kpis.totalRequests)}</div>
-          <div className={`mt-2 pt-1.5 border-t text-[11px] ${isLight ? 'border-slate-100 text-slate-500' : 'border-slate-800/60 text-slate-400'}`}>
-            of {fmtNum(records.length)} in the sheet
-          </div>
-          {monthCmp && <Delta isLight={isLight} cur={monthCmp.curCount} prev={monthCmp.prevCount} cm={monthCmp.current} pm={monthCmp.previous} format={fmtNum} />}
+          <div className={`text-2xl font-black tracking-tight ${kpiValue}`}>{fmtNum(kpis.totalRequests)}</div>
         </KpiBox>
 
         <KpiBox isLight={isLight} title="Amount of Refunds (EGP)" icon={<CircleDollarSign className="w-3.5 h-3.5" />} accent="from-emerald-500 to-teal-500">
-          <div className="text-3xl font-black tracking-tight text-emerald-500">EGP {fmtShort(kpis.refundAmount)}</div>
+          <div className="text-2xl font-black tracking-tight text-emerald-500">EGP {fmtShort(kpis.refundAmount)}</div>
           <div className={`flex items-center justify-between mt-2 pt-1.5 border-t text-[11px] font-mono ${isLight ? 'border-slate-100 text-slate-500' : 'border-slate-800/60 text-slate-400'}`}>
             <span>EGP {fmtMoney(kpis.refundAmount)}</span>
-            <span className="font-sans font-bold px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-500 border-emerald-500/30"># {fmtNum(kpis.refundCount)}</span>
+            <span className="font-sans font-bold text-[10px] px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-500 border-emerald-500/30"># {fmtNum(kpis.refundCount)}</span>
           </div>
-          <div className={`mt-1.5 text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Cancelled + Deletion · WDI excluded</div>
-          {monthCmp && <Delta isLight={isLight} cur={monthCmp.curAmount} prev={monthCmp.prevAmount} cm={monthCmp.current} pm={monthCmp.previous} format={n => `EGP ${fmtShort(n)}`} />}
+          <div className={`mt-1.5 pt-1.5 border-t space-y-1 text-[11px] ${isLight ? 'border-slate-100' : 'border-slate-800/60'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`font-bold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>Companies refunds</span>
+              <span className="font-mono font-bold text-indigo-500">EGP {fmtMoney(kpis.companiesRefund)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className={`font-bold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>Remaining refunds</span>
+              <span className="font-mono font-bold text-teal-500">EGP {fmtMoney(kpis.remainingRefund)}</span>
+            </div>
+          </div>
         </KpiBox>
 
-        <KpiBox isLight={isLight} title="WDI Refunds (Display Currency)" icon={<Globe2 className="w-3.5 h-3.5" />} accent="from-amber-500 to-orange-500">
-          {kpis.wdiByCurrency.length === 0 ? (
-            <div className={`text-3xl font-black tracking-tight ${isLight ? 'text-slate-300' : 'text-slate-600'}`}>0</div>
-          ) : (
-            <div className="space-y-1">
-              {kpis.wdiByCurrency.map(w => (
-                <div key={w.currency} className="flex items-baseline justify-between gap-2">
-                  <span className="text-2xl font-black tracking-tight text-amber-500">{fmtMoney(w.amount)}</span>
-                  <span className="flex items-center gap-1.5">
-                    <span className={`text-sm font-bold ${isLight ? 'text-slate-700' : 'text-slate-200'}`} dir="auto">{w.currency}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-500/10 text-amber-500 border-amber-500/30"># {w.count}</span>
-                  </span>
-                </div>
-              ))}
+        <KpiBox isLight={isLight} title="International Memberships" icon={<Globe2 className="w-3.5 h-3.5" />} accent="from-amber-500 to-orange-500">
+          {(kpis.wdiByCurrency.length > 0 ? kpis.wdiByCurrency : [{ currency: 'SAR', amount: 0, count: 0 }]).map(w => (
+            <div key={w.currency} className="flex items-baseline justify-between gap-2">
+              <span className="text-2xl font-black tracking-tight text-amber-500">
+                {fmtMoney(w.amount)} <span className="text-sm font-bold" dir="auto">{w.currency}</span>
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-500/10 text-amber-500 border-amber-500/30"># {fmtNum(w.count)}</span>
             </div>
-          )}
-          <div className={`mt-2 pt-1.5 border-t text-[10px] ${isLight ? 'border-slate-100 text-slate-400' : 'border-slate-800/60 text-slate-500'}`}>
-            Cancelled + Deletion · WDI memberships only · shown in each membership's currency
-          </div>
+          ))}
         </KpiBox>
       </div>
 
@@ -941,16 +991,6 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
           {kpis.statusCounts.map((s, i) => (
             <MiniCard key={s.name} isLight={isLight} name={s.name} count={s.count} total={kpis.totalRequests} color={paletteColor(i)} />
-          ))}
-        </div>
-      </div>
-
-      {/* Period counts */}
-      <div>
-        <SectionTitle isLight={isLight} icon={<Layers className="w-4 h-4" />} text="Count by Subscription Period (تصنيف فترة الاشتراك)" />
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-          {kpis.periodCounts.map((p, i) => (
-            <MiniCard key={p.name} isLight={isLight} name={p.name} count={p.count} total={kpis.totalRequests} color={paletteColor(i + 3)} />
           ))}
         </div>
       </div>
@@ -980,29 +1020,6 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
 
 /* ------------------------------------------------------------------ */
 
-/** Month-over-month change (by request date). Up = more cancellations = red; down = green. */
-const Delta: React.FC<{
-  isLight: boolean; cur: number; prev: number; cm: string; pm: string; format: (n: number) => string;
-}> = ({ isLight, cur, prev, cm, pm, format }) => {
-  const change = pctChange(cur, prev);
-  const up = cur > prev;
-  const flat = cur === prev;
-  const color = flat ? 'text-slate-400' : up ? 'text-rose-500' : 'text-emerald-500';
-  const Icon = flat ? Minus : up ? ArrowUp : ArrowDown;
-  return (
-    <div className={`mt-2 pt-1.5 border-t flex items-center justify-between gap-2 text-[11px] ${isLight ? 'border-slate-100' : 'border-slate-800/60'}`}
-      title={`${monthLabel(cm)}: ${format(cur)} · ${monthLabel(pm)}: ${format(prev)}`}>
-      <span className={`flex items-center gap-1 font-black ${color}`}>
-        <Icon className="w-3.5 h-3.5" />
-        {change === null ? (prev === 0 && cur === 0 ? '0%' : 'new') : `${change > 0 ? '+' : ''}${(change * 100).toFixed(1)}%`}
-      </span>
-      <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>
-        {monthLabel(cm)} ({format(cur)}) vs {monthLabel(pm)} ({format(prev)})
-      </span>
-    </div>
-  );
-};
-
 const PageBanner: React.FC<{ isLight: boolean; right?: React.ReactNode }> = ({ right }) => (
   <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-blue-950 text-white rounded-2xl p-6 shadow-xl border border-indigo-500/30">
     <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -1024,12 +1041,14 @@ const SectionTitle: React.FC<{ isLight: boolean; icon: React.ReactNode; text: st
 );
 
 const MiniCard: React.FC<{ isLight: boolean; name: string; count: number; total: number; color: string }> = ({ isLight, name, count, total, color }) => (
-  <div className={`rounded-xl p-3 border relative overflow-hidden ${isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-900 border-slate-800'}`}>
-    <div className="absolute top-0 left-0 bottom-0 w-1" style={{ background: color }} />
-    <div className={`text-[11px] font-bold truncate pl-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`} dir="auto" title={name}>{name}</div>
-    <div className="flex items-baseline justify-between pl-1 mt-1">
-      <span className={`text-2xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(count)}</span>
-      <span className="text-[10px] font-bold font-mono" style={{ color }}>{total ? ((count / total) * 100).toFixed(1) : '0.0'}%</span>
+  <div className={`rounded-2xl p-4 border relative overflow-hidden ${
+    isLight ? 'bg-white border-slate-200/80 text-slate-800 shadow-xs' : 'bg-slate-900 border-slate-800 text-slate-100 shadow-md'
+  }`}>
+    <div className="absolute top-0 left-0 right-0 h-1" style={{ background: color }} />
+    <div className={`text-xs font-bold mb-2 truncate ${isLight ? 'text-slate-700' : 'text-slate-300'}`} dir="auto" title={name}>{name}</div>
+    <div className={`text-2xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(count)}</div>
+    <div className={`mt-2 pt-1.5 border-t text-[11px] font-mono font-bold ${isLight ? 'border-slate-100' : 'border-slate-800/60'}`} style={{ color }}>
+      {total ? ((count / total) * 100).toFixed(1) : '0.0'}%
     </div>
   </div>
 );
