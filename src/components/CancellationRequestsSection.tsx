@@ -964,11 +964,17 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
           <div className={`mt-1.5 pt-1.5 border-t space-y-1 text-[11px] ${isLight ? 'border-slate-100' : 'border-slate-800/60'}`}>
             <div className="flex items-center justify-between">
               <span className={`font-bold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>Companies refunds</span>
-              <span className="font-mono font-bold text-indigo-500">EGP {fmtMoney(kpis.companiesRefund)}</span>
+              <span className="flex items-center gap-1.5">
+                <span className="font-mono font-bold text-indigo-500">EGP {fmtMoney(kpis.companiesRefund)}</span>
+                <span className="font-sans font-bold text-[10px] px-2 py-0.5 rounded-full border bg-indigo-500/10 text-indigo-500 border-indigo-500/30"># {fmtNum(kpis.companiesCount)}</span>
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className={`font-bold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>Remaining refunds</span>
-              <span className="font-mono font-bold text-teal-500">EGP {fmtMoney(kpis.remainingRefund)}</span>
+              <span className="flex items-center gap-1.5">
+                <span className="font-mono font-bold text-teal-500">EGP {fmtMoney(kpis.remainingRefund)}</span>
+                <span className="font-sans font-bold text-[10px] px-2 py-0.5 rounded-full border bg-teal-500/10 text-teal-500 border-teal-500/30"># {fmtNum(kpis.remainingCount)}</span>
+              </span>
             </div>
           </div>
         </KpiBox>
@@ -982,6 +988,16 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-500/10 text-amber-500 border-amber-500/30"># {fmtNum(w.count)}</span>
             </div>
           ))}
+          <div className={`mt-2 pt-1.5 border-t space-y-1 text-[11px] ${isLight ? 'border-slate-100' : 'border-slate-800/60'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`font-bold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>Cancelled</span>
+              <span className="font-sans font-bold text-[10px] px-2 py-0.5 rounded-full border bg-rose-500/10 text-rose-500 border-rose-500/30"># {fmtNum(kpis.wdiCancelledCount)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className={`font-bold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>Pending</span>
+              <span className="font-sans font-bold text-[10px] px-2 py-0.5 rounded-full border bg-amber-500/10 text-amber-500 border-amber-500/30"># {fmtNum(kpis.wdiPendingCount)}</span>
+            </div>
+          </div>
         </KpiBox>
       </div>
 

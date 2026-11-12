@@ -41,6 +41,14 @@ export const UNSPECIFIED = 'غير محدد';
 /** A record counts as a "refund" only when its status is Cancelled (Deletion is NOT included). */
 export const REFUND_STATUS_KEYWORDS = ['cancel', 'ملغ', 'إلغاء', 'الغاء'];
 
+/** Status counted as "Pending". */
+export const PENDING_STATUS_KEYWORDS = ['pending', 'معلق', 'قيد', 'انتظار'];
+
+export function isPendingStatus(status: string): boolean {
+  const v = status.toLowerCase();
+  return !!v && PENDING_STATUS_KEYWORDS.some(k => v.includes(k));
+}
+
 /** A membership is International (WDI) when its type contains one of these, or when its currency is not EGP. */
 export const WDI_KEYWORDS = ['wdi', 'international', 'دولي'];
 
@@ -434,9 +442,13 @@ export interface CancellationKpis {
   refundAmount: number; // EGP: Cancelled only, International (WDI) excluded
   companiesRefund: number; // part of refundAmount: payment method = Aman / Ollin / Premium / Contact / Fastrack
   remainingRefund: number; // part of refundAmount: all other payment methods
-  refundCount: number; // all non-international requests (any status)
+  companiesCount: number; // Cancelled requests paid by Aman / Ollin / Premium / Contact / Fastrack
+  remainingCount: number; // Cancelled requests paid by any other method (non-international)
+  refundCount: number; // Cancelled non-international requests
   wdiByCurrency: { currency: string; amount: number; count: number }[];
   wdiCount: number;
+  wdiCancelledCount: number; // International requests with status Cancelled
+  wdiPendingCount: number; // International requests with status Pending
 }
 
 export function calculateCancellationKpis(records: CancellationRecord[]): CancellationKpis {
@@ -449,9 +461,13 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
   let refundAmount = 0;
   let companiesRefund = 0;
   let remainingRefund = 0;
+  let companiesCount = 0;
+  let remainingCount = 0;
   let refundCount = 0;
   const wdi = new Map<string, { amount: number; count: number }>();
   let wdiCount = 0;
+  let wdiCancelledCount = 0;
+  let wdiPendingCount = 0;
 
   // Counts include ALL requests (any status); amounts include Cancelled only.
   records.forEach(r => {
@@ -463,13 +479,19 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
       e.count += 1;
       wdi.set(cur, e);
       wdiCount += 1;
+      if (cancelled) wdiCancelledCount += 1;
+      if (isPendingStatus(r.status)) wdiPendingCount += 1;
     } else {
       if (cancelled) {
         refundAmount += refundSum(r);
         if (isCompanyPayment(r.paymentMethod)) companiesRefund += refundSum(r);
         else remainingRefund += refundSum(r);
       }
-      refundCount += 1;
+      if (cancelled) {
+        refundCount += 1;
+        if (isCompanyPayment(r.paymentMethod)) companiesCount += 1;
+        else remainingCount += 1;
+      }
     }
   });
 
@@ -481,9 +503,13 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
     refundAmount,
     companiesRefund,
     remainingRefund,
+    companiesCount,
+    remainingCount,
     refundCount,
     wdiByCurrency: Array.from(wdi, ([currency, v]) => ({ currency, ...v })).sort((a, b) => b.amount - a.amount),
     wdiCount,
+    wdiCancelledCount,
+    wdiPendingCount,
   };
 }
 
