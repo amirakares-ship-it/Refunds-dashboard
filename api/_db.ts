@@ -80,4 +80,21 @@ export async function ensureTables() {
       updated_at TEXT NOT NULL
     );
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS cancellation_chunks (
+      id SERIAL PRIMARY KEY,
+      chunk_index INTEGER NOT NULL,
+      total_chunks INTEGER NOT NULL,
+      records TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS cancellation_meta (
+      key TEXT PRIMARY KEY,
+      file_name TEXT,
+      row_count INTEGER,
+      updated_at TEXT NOT NULL
+    );
+  `;
 }

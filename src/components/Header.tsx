@@ -14,14 +14,15 @@ import {
   RotateCcw,
   X,
   Check,
-  Loader2
+  Loader2,
+  Ban
 } from 'lucide-react';
 import { DashboardFilters, DashboardCustomization } from '../types';
 import { parseMonthAndYear } from '../utils/dataProcessor';
 
 interface HeaderProps {
-  activeSection: 'all_refunds' | 'cs_work' | 'funds' | 'finance';
-  setActiveSection: (sec: 'all_refunds' | 'cs_work' | 'funds' | 'finance') => void;
+  activeSection: 'all_refunds' | 'cs_work' | 'funds' | 'finance' | 'cancellations';
+  setActiveSection: (sec: 'all_refunds' | 'cs_work' | 'funds' | 'finance' | 'cancellations') => void;
   filters: DashboardFilters;
   setFilters: React.Dispatch<React.SetStateAction<DashboardFilters>>;
   customization: DashboardCustomization;
@@ -186,13 +187,25 @@ export const Header: React.FC<HeaderProps> = ({
                 <DollarSign className="w-3.5 h-3.5 text-amber-400" />
                 Finance
               </button>
+              <button
+                onClick={() => setActiveSection('cancellations')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeSection === 'cancellations'
+                    ? 'bg-rose-600 text-white shadow-sm shadow-rose-600/30'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <Ban className="w-3.5 h-3.5 text-rose-300" />
+                Cancellation Requests
+              </button>
             </div>
           </div>
 
           {/* Right Action Tools: Filter Icon Popup & Admin Edit */}
           <div className="flex items-center gap-2.5">
             
-            {/* Global Filter Icon Button (Opens on click) */}
+            {/* Global Filter Icon Button (Opens on click) — hidden on the Cancellation Requests page, which has its own filters */}
+            {activeSection !== 'cancellations' && (
             <div className="relative" ref={filterDropdownRef}>
               <button
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
@@ -351,11 +364,12 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               )}
             </div>
+            )}
 
             {/* Export & Actions Toolbar */}
             <div className="flex items-center gap-2">
               {/* Management & Export Tools (Inputs, Upload, PDF) - All Hidden in Presentation Mode */}
-              {!isPresentationMode && (
+              {!isPresentationMode && activeSection !== 'cancellations' && (
                 <div className="flex items-center gap-2 animate-fadeIn">
                   {/* Manual Inputs Trigger */}
                   <button

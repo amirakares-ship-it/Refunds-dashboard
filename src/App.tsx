@@ -26,6 +26,7 @@ import {
 import { exportDashboardToPdf, exportSinglePagePdf, exportAllPagesPdf } from './utils/exportUtils';
 
 import { Header } from './components/Header';
+import { CancellationRequestsSection } from './components/CancellationRequestsSection';
 import { KpiCards } from './components/KpiCards';
 import { ManualInputModal } from './components/ManualInputModal';
 import { FileUploadModal } from './components/FileUploadModal';
@@ -164,7 +165,7 @@ export default function App() {
   }, []);
 
   // Dashboard Section: 'all_refunds', 'cs_work', 'funds', or 'finance'
-  const [activeSection, setActiveSection] = useState<'all_refunds' | 'cs_work' | 'funds' | 'finance'>('all_refunds');
+  const [activeSection, setActiveSection] = useState<'all_refunds' | 'cs_work' | 'funds' | 'finance' | 'cancellations'>('all_refunds');
 
   // Filters State
   const [filters, setFilters] = useState<DashboardFilters>({
@@ -621,6 +622,11 @@ export default function App() {
             onExpandChart={handleOpenExpandChart}
             isLight={isLight}
           />
+        )}
+
+        {/* SECTION 5: Cancellation Requests 2026 (own sheet, own filters) */}
+        {activeSection === 'cancellations' && (
+          <CancellationRequestsSection isLight={isLight} isPresentationMode={isPresentationMode} />
         )}
 
         {/* SECTION 4: Finance Page (صفحة المالية) */}
