@@ -53,7 +53,7 @@ export const PAYMENT_GROUPS: { group: string; keywords: string[] }[] = [
     keywords: [
       'شركة', 'شركات', 'company', 'companies', 'تمويل',
       'ollin', 'اولين', 'أولين', 'premium', 'بريميم', 'aman', 'امان', 'أمان',
-      'contact', 'كونتكت', 'valu', 'فاليو', 'sympl', 'سيمبل', 'souhoola', 'سهولة',
+      'contact', 'كونتكت', 'fastrack', 'فاستراك', 'valu', 'فاليو', 'sympl', 'سيمبل', 'souhoola', 'سهولة',
     ],
   },
   {
@@ -65,6 +65,20 @@ export const PAYMENT_GROUPS: { group: string; keywords: string[] }[] = [
   },
   { group: 'default', keywords: ['default', 'ديفولت', 'افتراضي'] },
 ];
+/** "Companies refunds" card: payment methods that count as financing companies. */
+export const COMPANY_PAYMENT_KEYWORDS = [
+  'aman', 'أمان', 'امان',
+  'ollin', 'اولين', 'أولين',
+  'premium', 'بريميم', 'بريميوم',
+  'contact', 'كونتكت',
+  'fastrack', 'fast track', 'فاستراك', 'فاست تراك',
+];
+
+export function isCompanyPayment(method: string): boolean {
+  const m = lc(method);
+  return !!m && COMPANY_PAYMENT_KEYWORDS.some(k => m.includes(k));
+}
+
 export const PAYMENT_GROUP_ORDER = ['Companies', 'Banks', 'Cash', 'Cheques', 'default', 'Other'];
 export const PAYMENT_GROUP_COLORS: Record<string, string> = {
   Companies: '#6366f1',
@@ -418,8 +432,8 @@ export interface CancellationKpis {
   statusCounts: { name: string; count: number }[];
   periodCounts: { name: string; count: number }[];
   refundAmount: number; // EGP: Cancelled only, International (WDI) excluded
-  companiesRefund: number; // part of refundAmount: رد للعميل (Companies)
-  remainingRefund: number; // refundAmount - companiesRefund
+  companiesRefund: number; // part of refundAmount: payment method = Aman / Ollin / Premium / Contact / Fastrack
+  remainingRefund: number; // part of refundAmount: all other payment methods
   refundCount: number; // all non-international requests (any status)
   wdiByCurrency: { currency: string; amount: number; count: number }[];
   wdiCount: number;
@@ -434,6 +448,7 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
 
   let refundAmount = 0;
   let companiesRefund = 0;
+  let remainingRefund = 0;
   let refundCount = 0;
   const wdi = new Map<string, { amount: number; count: number }>();
   let wdiCount = 0;
@@ -451,7 +466,8 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
     } else {
       if (cancelled) {
         refundAmount += refundSum(r);
-        companiesRefund += r.refundCompanies || 0;
+        if (isCompanyPayment(r.paymentMethod)) companiesRefund += refundSum(r);
+        else remainingRefund += refundSum(r);
       }
       refundCount += 1;
     }
@@ -464,7 +480,7 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
     periodCounts: periodOrder.map(name => ({ name, count: periodMap.get(name) || 0 })),
     refundAmount,
     companiesRefund,
-    remainingRefund: refundAmount - companiesRefund,
+    remainingRefund,
     refundCount,
     wdiByCurrency: Array.from(wdi, ([currency, v]) => ({ currency, ...v })).sort((a, b) => b.amount - a.amount),
     wdiCount,
