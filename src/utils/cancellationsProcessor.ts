@@ -271,20 +271,25 @@ export function isRefundStatus(status: string): boolean {
 export function normalizeCurrency(raw: string): string {
   const c = lc(raw).replace(/[.\s]/g, '');
   if (!c) return '';
-  if (c.includes('sar') || c === 'sr' || c.includes('ريال') || c.includes('سعود')) return 'SAR';
+  if (c.includes('sar') || c === 'sr' || c === 'رس' || c.includes('ريال') || c.includes('سعود')) return 'SAR';
   if (c.includes('usd') || c.includes('دولار') || c === '$') return 'USD';
-  if (c.includes('egp') || c.includes('جني') || c === 'le' || c.includes('مصر')) return 'EGP';
+  if (c.includes('egp') || c.includes('جني') || c === 'جم' || c === 'le' || c === 'ge' || c.includes('pound') || c.includes('مصر')) return 'EGP';
   if (c.includes('aed') || c.includes('درهم')) return 'AED';
   if (c.includes('eur') || c.includes('يورو')) return 'EUR';
+  if (c.includes('gbp') || c.includes('استرليني') || c.includes('إسترليني')) return 'GBP';
+  if (c.includes('kwd') || c.includes('دينار')) return 'KWD';
+  if (c.includes('qar') || c.includes('قطري')) return 'QAR';
   return raw.trim().toUpperCase();
 }
 
-/** International (WDI) membership: WDI/International type, or any currency other than EGP. */
+const FOREIGN_CURRENCIES = ['SAR', 'USD', 'AED', 'EUR', 'GBP', 'KWD', 'QAR', 'BHD', 'OMR'];
+
+/** International (WDI) membership: WDI/International type, or a known foreign currency (unknown values are treated as EGP). */
 export function isWdi(r: CancellationRecord): boolean {
   const t = lc(r.membershipType);
   if (WDI_KEYWORDS.some(k => t.includes(k))) return true;
   const cur = normalizeCurrency(r.currency);
-  return cur !== '' && cur !== 'EGP';
+  return FOREIGN_CURRENCIES.includes(cur);
 }
 
 export function paymentGroupOf(method: string): string {
