@@ -16,7 +16,7 @@ import {
   applyChartFilter, buildFilterOptions, calculateCancellationKpis, clubDistribution, filterCancellations,
   fmtMoney, fmtNum, fmtShort, paletteColor, parseCancellationWorkbook, paymentBreakdown,
   periodDistribution, reasonDistribution, requestTimeline,
-  exceptionStats, reasonClubHeatmap, periodEn,
+  exceptionStats, reasonClubHeatmap, periodEn, UNSPECIFIED,
 } from '../utils/cancellationsProcessor';
 import { loadCancellations, loadLocalCancellations, saveCancellations } from '../utils/cancellationsStore';
 
@@ -305,6 +305,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
   const [timeMetric, setTimeMetric] = useState<'both' | 'count' | 'amount'>('count');
   const [periodClub, setPeriodClub] = useState('ALL');
   const [periodPay, setPeriodPay] = useState('ALL');
+  const [periodStatus, setPeriodStatus] = useState('ALL');
   const [exMetric, setExMetric] = useState<'both' | 'count' | 'amount'>('count');
   const [heatMode, setHeatMode] = useState<'top10' | 'all'>('top10');
 
@@ -608,12 +609,18 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
 
       /* 5. Period --------------------------------------------------------- */
       case 'periods': {
-        const scoped = applyChartFilter(filtered, periodClub, periodPay);
+        const scoped = applyChartFilter(filtered, periodClub, periodPay).filter(r => periodStatus === 'ALL' || (r.status || UNSPECIFIED) === periodStatus);
         const data = periodDistribution(scoped, periodOrder);
         const total = data.reduce((s, d) => s + d.count, 0);
         return (
           <ChartCard chartId={id} title="Subscription Period (Count)" icon={<CalendarClock className="w-4 h-4" />} {...common}
-            controls={chartFilters(periodClub, setPeriodClub, periodPay, setPeriodPay)}
+            controls={<>
+              {chartFilters(periodClub, setPeriodClub, periodPay, setPeriodPay)}
+              <Select compact label="Status:" value={periodStatus} onChange={setPeriodStatus} isLight={isLight}>
+                <option value="ALL">All</option>
+                {options.statuses.map(st => <option key={st} value={st}>{st}</option>)}
+              </Select>
+            </>}
             footer={<><span>Ordered from shortest to longest period</span><span className="font-mono font-bold text-indigo-500">{fmtNum(total)} requests</span></>}>
             {total === 0 ? <Empty isLight={isLight} /> : (
               <div className={h}>

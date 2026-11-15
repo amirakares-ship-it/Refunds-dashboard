@@ -418,6 +418,7 @@ export interface FilterOptions {
   periods: string[];
   paymentGroups: string[];
   paymentOptions: string[];
+  statuses: string[];
 }
 
 export function buildFilterOptions(records: CancellationRecord[]): FilterOptions {
@@ -429,6 +430,7 @@ export function buildFilterOptions(records: CancellationRecord[]): FilterOptions
     periods: orderedPeriods(records),
     paymentGroups: PAYMENT_GROUP_ORDER.filter(g => groups.has(g)),
     paymentOptions: uniqueSorted(records.map(r => label(r.paymentMethod))),
+    statuses: uniqueSorted(records.map(r => label(r.status))),
   };
 }
 
@@ -607,10 +609,29 @@ export function requestTimeline(records: CancellationRecord[]) {
   return Array.from(map, ([ym, v]) => ({ ym, month: monthLabel(ym), ...v })).sort((a, b) => a.ym.localeCompare(b.ym));
 }
 
+/** Periods of 5 years or more (e.g. "5 years", "over 5 years") are shown together as "Else". */
+export const PERIOD_ELSE_LABEL = 'Else';
+export function isElsePeriod(en: string): boolean {
+  return /^(over )?(\d+) years$/.test(en) && parseInt(en.replace(/\D+/g, ''), 10) >= 5;
+}
+
 export function periodDistribution(records: CancellationRecord[], order: string[]) {
   const map = new Map<string, number>();
   records.forEach(r => map.set(label(r.periodClass), (map.get(label(r.periodClass)) || 0) + 1));
-  return order.map(name => ({ name: periodEn(name), count: map.get(name) || 0 }));
+  const out: { name: string; count: number }[] = [];
+  let elseCount = 0;
+  order.forEach(raw => {
+    const en = periodEn(raw);
+    const count = map.get(raw) || 0;
+    // also catches unit-less labels such as "5 فأكثر" (5 and over)
+    const t = toLatinDigits(raw);
+    const bareOver = /(\d+)/.test(t) && !/يوم|ايام|أيام|شهر|شهور|day|month/i.test(t)
+      && /اكثر|أكثر|اكتر|أكتر|over|more|\+/i.test(t) && parseInt((t.match(/\d+/) || ['0'])[0], 10) >= 5;
+    if (isElsePeriod(en) || bareOver) elseCount += count;
+    else out.push({ name: en, count });
+  });
+  if (elseCount > 0) out.push({ name: PERIOD_ELSE_LABEL, count: elseCount });
+  return out;
 }
 
 /* ---------------------------------------------------------------------
