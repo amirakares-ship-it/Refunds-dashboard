@@ -426,7 +426,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         const pctOf = (v: number, t: number) => (t > 0 ? ((v / t) * 100).toFixed(1) : '0.0');
         const sorted = [...data].sort((a, b) => b[key] - a[key]);
         return (
-          <ChartCard chartId={id} title="Payment Methods (Count & Amount)" icon={<PieIcon className="w-4 h-4" />} {...common}
+          <ChartCard chartId={id} title="Payment Methods" icon={<PieIcon className="w-4 h-4" />} {...common}
             controls={<>
               <Segmented isLight={isLight} value={payMetric} onChange={setPayMetric}
                 options={[{ id: 'count', label: 'Count' }, { id: 'amount', label: 'Amount' }]} />
@@ -438,11 +438,11 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
             {data.length === 0 ? <Empty isLight={isLight} /> : (
               <div className="flex flex-col md:flex-row items-center gap-4">
                 {/* Donut (left) */}
-                <div className={`relative w-full md:flex-1 min-w-0 ${full ? 'h-[460px]' : 'h-[340px]'}`}>
+                <div className={`relative w-full md:flex-1 min-w-0 ${full ? 'h-[460px]' : 'h-[270px]'}`}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={data} dataKey={key} nameKey="name" cx="50%" cy="50%" innerRadius={full ? 100 : 75}
-                        outerRadius={full ? 185 : 140} paddingAngle={2} labelLine={false} label={pieLabel}>
+                      <Pie data={data} dataKey={key} nameKey="name" cx="50%" cy="50%" innerRadius={full ? 100 : 55}
+                        outerRadius={full ? 185 : 105} paddingAngle={2} labelLine={false} label={pieLabel}>
                         {data.map((d, i) => <Cell key={i} fill={d.fill} stroke={isLight ? '#fff' : '#0f172a'} strokeWidth={2} />)}
                       </Pie>
                       <Tooltip content={({ active, payload }: any) => {
@@ -466,14 +466,14 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                   {/* Total in the centre of the donut */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <span className={`text-[10px] font-bold uppercase tracking-wider ${subText}`}>{key === 'count' ? 'Requests' : 'Refund EGP'}</span>
-                    <span className={`${full ? 'text-4xl' : 'text-3xl'} font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    <span className={`${full ? 'text-4xl' : 'text-2xl'} font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
                       {key === 'count' ? fmtNum(total) : fmtShort(total)}
                     </span>
                   </div>
                 </div>
 
                 {/* Legend / numbers (right) */}
-                <div className={`w-full md:w-[270px] shrink-0 space-y-1.5 ${!full && sorted.length > 6 ? 'max-h-[340px] overflow-y-auto pr-1' : ''}`}>
+                <div className={`w-full md:w-[270px] shrink-0 space-y-1.5 ${!full && sorted.length > 6 ? 'max-h-[270px] overflow-y-auto pr-1' : ''}`}>
                   {sorted.map(d => (
                     <div key={d.name} className={`px-2.5 py-1.5 rounded-xl border flex items-center justify-between gap-2 ${
                       isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/70 border-slate-800'}`}
