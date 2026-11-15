@@ -7,7 +7,7 @@ import {
 import {
   AlertCircle, Banknote, CalendarClock, CheckCircle2, CircleDollarSign, FileSpreadsheet, Filter,
   Clock, Globe2, Hash, Landmark, Layers, ListChecks, Loader2, Maximize2, MessageSquareText, PieChart as PieIcon,
-  RotateCcw, ShieldAlert, ShieldCheck, TrendingUp, Upload, X, LayoutGrid,
+  RotateCcw, ShieldCheck, TrendingUp, Upload, X, LayoutGrid,
 } from 'lucide-react';
 import { ChartModal } from './ChartModal';
 import { ChartModalState } from '../types';
@@ -16,7 +16,7 @@ import {
   applyChartFilter, buildFilterOptions, calculateCancellationKpis, clubDistribution, filterCancellations,
   fmtMoney, fmtNum, fmtShort, paletteColor, parseCancellationWorkbook, paymentBreakdown,
   periodDistribution, periodBucket, tenureTable, TENURE_GROUP_COLUMNS, reasonDistribution, requestTimeline,
-  exceptionStats, reasonClubHeatmap, UNSPECIFIED,
+  reasonClubHeatmap, UNSPECIFIED,
 } from '../utils/cancellationsProcessor';
 import { loadCancellations, loadLocalCancellations, saveCancellations } from '../utils/cancellationsStore';
 
@@ -309,7 +309,6 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
   const [periodPay, setPeriodPay] = useState('ALL');
   const [periodStatus, setPeriodStatus] = useState('ALL');
   const [periodView, setPeriodView] = useState<'chart' | 'table'>('chart');
-  const [exMetric, setExMetric] = useState<'both' | 'count' | 'amount'>('count');
   const [heatMode, setHeatMode] = useState<'top10' | 'all'>('top10');
 
   // The filter icon lives in the app header (next to the presentation icon) — rendered through a portal.
@@ -749,60 +748,6 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         );
       }
 
-      /* 8. Exceptions ----------------------------------------------------- */
-      case 'exceptions': {
-        const st = exceptionStats(filtered);
-        const showCount = exMetric !== 'amount';
-        const showAmount = exMetric !== 'count';
-        const chip = (txt: string, value: string, color: string) => (
-          <div className={`px-3 py-2 rounded-xl border min-w-[130px] ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/70 border-slate-800'}`}>
-            <div className="text-[11px] font-bold" style={{ color }}>{txt}</div>
-            <div className={`text-xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{value}</div>
-          </div>
-        );
-        return (
-          <ChartCard chartId={id} title="Exceptions (الاستثناءات)" icon={<ShieldAlert className="w-4 h-4" />} {...common}
-            controls={<Segmented isLight={isLight} value={exMetric} onChange={setExMetric}
-              options={[{ id: 'both', label: 'Both' }, { id: 'count', label: 'Count' }, { id: 'amount', label: 'Amount' }]} />}
-            footer={<><span>{st.byType.length} exception types</span>{metricTotals(exMetric, st.count, st.amount)}</>}>
-            {st.count === 0 ? <Empty isLight={isLight} /> : (
-              <>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {chip('Exception requests', fmtNum(st.count), '#f59e0b')}
-                  {chip('Share of requests', `${(st.share * 100).toFixed(1)}%`, '#6366f1')}
-                  {chip('Refund amount (EGP)', fmtShort(st.amount), '#10b981')}
-                </div>
-                <div className={h}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={st.byType} margin={{ top: 15, right: 10, left: 0, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={grid} />
-                      <XAxis dataKey="name" interval={0} angle={st.byType.length > 5 ? -25 : 0} textAnchor={st.byType.length > 5 ? 'end' : 'middle'}
-                        height={st.byType.length > 5 ? 70 : 30} tick={{ fill: axis, fontSize: 11, fontWeight: 600 }} />
-                      {showCount && <YAxis yAxisId="l" allowDecimals={false} tick={{ fill: axis, fontSize: 11 }} />}
-                      {showAmount && <YAxis yAxisId="r" orientation={showCount ? 'right' : 'left'} tickFormatter={fmtShort} tick={{ fill: axis, fontSize: 11 }} />}
-                      <Tooltip cursor={{ fill: isLight ? '#f1f5f9' : '#1e293b55' }} content={({ active, payload, label: lb }: any) => {
-                        if (!active || !payload?.length) return null;
-                        const d = payload[0].payload;
-                        return (
-                          <div className={tooltipBox}>
-                            <div className="font-bold text-white border-b border-slate-800 pb-1" dir="auto">{lb}</div>
-                            <div className="text-slate-300">Requests: <strong className="text-white">{fmtNum(d.count)}</strong></div>
-                            <div className="text-slate-300">Refund: <strong className="text-emerald-400">EGP {fmtMoney(d.amount)}</strong></div>
-                          </div>
-                        );
-                      }} />
-                      <Legend verticalAlign="top" height={30} wrapperStyle={{ fontSize: 11, color: axis }} />
-                      {showCount && <Bar yAxisId="l" dataKey="count" name="Requests" fill="#f59e0b" radius={[4, 4, 0, 0]} />}
-                      {showAmount && <Bar yAxisId="r" dataKey="amount" name="Refund amount (EGP)" fill="#10b981" radius={[4, 4, 0, 0]} />}
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
-              </>
-            )}
-          </ChartCard>
-        );
-      }
-
       /* 9. Reasons x Clubs heatmap ---------------------------------------- */
       case 'heatmap': {
         const hm = reasonClubHeatmap(filtered, heatMode === 'top10' ? 10 : null);
@@ -1066,7 +1011,6 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         {renderChart('reasons', false)}
         {renderChart('timeline', false)}
         <div className="lg:col-span-2">{renderChart('periods', false)}</div>
-        <div className="lg:col-span-2">{renderChart('exceptions', false)}</div>
         <div className="lg:col-span-2">{renderChart('heatmap', false)}</div>
       </div>
 
