@@ -30,6 +30,7 @@ export interface CancellationRecord {
   statusDate: string;
   exception: string;
   exceptionType: string;
+  seller: string; // اسم البائع
 }
 
 /* ---------------------------------------------------------------------
@@ -183,6 +184,7 @@ const COLUMN_ALIASES: Record<keyof CancellationRecord, string[]> = {
   statusDate: ['تاريخ حالة الإلغاء'],
   exception: ['الاستثناء'],
   exceptionType: ['نوع الاستثناء'],
+  seller: ['اسم البائع', 'البائع'],
 };
 
 /** Columns the dashboard cannot work without. */
@@ -268,6 +270,7 @@ export function mapRows(rows: Record<string, any>[], sheetName = ''): ParseResul
       statusDate: parseDateValue(get(row, 'statusDate')),
       exception: clean(get(row, 'exception')),
       exceptionType: clean(get(row, 'exceptionType')),
+      seller: clean(get(row, 'seller')),
     });
   });
 
@@ -930,4 +933,52 @@ export function periodEn(raw: string): string {
     return n === 1 ? 'year' : `${n} years`;
   }
   return raw;
+}
+
+/* ---------------------------------------------------------------------
+ *  Sellers (اسم البائع) — similar spellings are merged
+ * ------------------------------------------------------------------- */
+
+/**
+ * Key used to merge similar spellings of the same name:
+ * ة/ه, ى/ي, أ/إ/آ/ا, ؤ/و, ئ/ي, diacritics, tatweel, extra spaces/punctuation, upper/lower case.
+ */
+export function normalizeName(raw: string): string {
+  return clean(raw)
+    .toLowerCase()
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
+    .replace(/[^a-z0-9\u0600-\u06FF ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export interface SellerStat {
+  name: string; // the most frequent spelling in the sheet
+  variants: string[]; // all spellings merged into this seller
+  count: number; // all requests
+  amount: number; // EGP refund rule
+}
+
+export function sellerDistribution(records: CancellationRecord[]): SellerStat[] {
+  const groups = new Map<string, { spellings: Map<string, number>; count: number; amount: number }>();
+  records.forEach(r => {
+    const raw = clean(r.seller);
+    if (!raw) return;
+    const key = normalizeName(raw);
+    if (!key) return;
+    const g = groups.get(key) || { spellings: new Map<string, number>(), count: 0, amount: 0 };
+    g.spellings.set(raw, (g.spellings.get(raw) || 0) + 1);
+    g.count += 1;
+    g.amount += egpRefundAmount(r);
+    groups.set(key, g);
+  });
+  return Array.from(groups.values()).map(g => {
+    const spellings = Array.from(g.spellings).sort((a, b) => b[1] - a[1]);
+    return { name: spellings[0][0], variants: spellings.map(x => x[0]), count: g.count, amount: g.amount };
+  });
 }

@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import {
   AlertCircle, Banknote, CalendarClock, CheckCircle2, CircleDollarSign, FileSpreadsheet, Filter,
-  Clock, Globe2, Hash, Landmark, Layers, ListChecks, Loader2, Maximize2, MessageSquareText, PieChart as PieIcon,
+  Clock, Globe2, Hash, Users, Landmark, Layers, ListChecks, Loader2, Maximize2, MessageSquareText, PieChart as PieIcon,
   RotateCcw, ShieldCheck, TrendingUp, Upload, X, LayoutGrid,
 } from 'lucide-react';
 import { ChartModal } from './ChartModal';
@@ -16,7 +16,7 @@ import {
   applyChartFilter, buildFilterOptions, calculateCancellationKpis, clubDistribution, filterCancellations,
   fmtMoney, fmtNum, fmtShort, paletteColor, parseCancellationWorkbook, paymentBreakdown,
   periodDistribution, periodBucket, tenureTable, TENURE_GROUP_COLUMNS, reasonDistribution, requestTimeline,
-  reasonClubHeatmap, UNSPECIFIED,
+  reasonClubHeatmap, sellerDistribution, UNSPECIFIED,
 } from '../utils/cancellationsProcessor';
 import { loadCancellations, loadLocalCancellations, saveCancellations } from '../utils/cancellationsStore';
 
@@ -308,6 +308,10 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
   const [periodClub, setPeriodClub] = useState('ALL');
   const [periodPay, setPeriodPay] = useState('ALL');
   const [periodStatus, setPeriodStatus] = useState('ALL');
+  const [sellerMetric, setSellerMetric] = useState<'count' | 'amount'>('count');
+  const [sellerClub, setSellerClub] = useState('ALL');
+  const [sellerPay, setSellerPay] = useState('ALL');
+  const [sellerStatus, setSellerStatus] = useState('ALL');
   const [periodView, setPeriodView] = useState<'chart' | 'table'>('chart');
   const [heatMode, setHeatMode] = useState<'top10' | 'all'>('top10');
 
@@ -805,6 +809,69 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
           </ChartCard>
         );
       }
+      /* 10. Top 10 sellers ------------------------------------------------ */
+      case 'sellers': {
+        const scoped = applyChartFilter(filtered, sellerClub, sellerPay).filter(r => sellerStatus === 'ALL' || (r.status || UNSPECIFIED) === sellerStatus);
+        const hasSellerColumn = records.some(r => r.seller);
+        const all = sellerDistribution(scoped);
+        const top = [...all].sort((a, b) => b[sellerMetric] - a[sellerMetric] || b.count - a.count).slice(0, 10);
+        const topTotal = top.reduce((a, d) => a + d[sellerMetric], 0);
+        const grand = all.reduce((a, d) => a + d[sellerMetric], 0);
+        return (
+          <ChartCard chartId={id} title="Top 10 Sellers (اسم البائع)" icon={<Users className="w-4 h-4" />} {...common}
+            chips={localChips(sellerClub, sellerPay, sellerStatus)}
+            controls={<>
+              <Segmented isLight={isLight} value={sellerMetric} onChange={setSellerMetric}
+                options={[{ id: 'count', label: 'Count' }, { id: 'amount', label: 'Amount' }]} />
+              {chartFilters(sellerClub, setSellerClub, sellerPay, setSellerPay)}
+              <Select compact label="Status:" value={sellerStatus} onChange={setSellerStatus} isLight={isLight}>
+                <option value="ALL">All</option>
+                {options.statuses.map(st => <option key={st} value={st}>{st}</option>)}
+              </Select>
+            </>}
+            footer={<><span>Top {top.length} of {all.length} sellers · similar spellings are merged</span>
+              <span className="font-mono font-bold text-indigo-500">
+                {sellerMetric === 'count' ? `${fmtNum(topTotal)} of ${fmtNum(grand)} requests` : `Refund: EGP ${fmtMoney(topTotal)} of ${fmtMoney(grand)}`}
+              </span></>}>
+            {!hasSellerColumn ? (
+              <div className={`h-48 flex items-center justify-center text-sm text-center px-6 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                The sheet has no «اسم البائع» data yet. Upload the sheet again with that column to see this chart.
+              </div>
+            ) : top.length === 0 ? <Empty isLight={isLight} /> : (
+              <div style={{ height: Math.max(full ? 420 : 340, top.length * 38 + 40) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={top} layout="vertical" margin={{ top: 5, right: 60, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={grid} horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} tickFormatter={sellerMetric === 'amount' ? fmtShort : undefined} tick={{ fill: axis, fontSize: 11 }} />
+                    <YAxis type="category" dataKey="name" width={full ? 230 : 160} interval={0}
+                      tick={{ fill: axis, fontSize: 11, fontWeight: 600 }}
+                      tickFormatter={(v: string) => (v.length > (full ? 34 : 22) ? v.slice(0, full ? 34 : 22) + '…' : v)} />
+                    <Tooltip cursor={{ fill: isLight ? '#f1f5f9' : '#1e293b55' }} content={({ active, payload }: any) => {
+                      if (!active || !payload?.length) return null;
+                      const d = payload[0].payload;
+                      return (
+                        <div className={tooltipBox}>
+                          <div className="font-bold text-white" dir="auto">{d.name}</div>
+                          <div className="text-slate-300">Requests: <strong className="text-white">{fmtNum(d.count)}</strong></div>
+                          <div className="text-slate-300">Refund: <strong className="text-emerald-400">EGP {fmtMoney(d.amount)}</strong></div>
+                          {d.variants.length > 1 && (
+                            <div className="text-slate-400 pt-1 border-t border-slate-800" dir="auto">Merged: {d.variants.join(' · ')}</div>
+                          )}
+                        </div>
+                      );
+                    }} />
+                    <Bar dataKey={sellerMetric} radius={[0, 4, 4, 0]}
+                      label={{ position: 'right', fill: axis, fontSize: 11, fontWeight: 700, formatter: (v: number) => (sellerMetric === 'amount' ? fmtShort(v) : fmtNum(v)) }}>
+                      {top.map((_, i) => <Cell key={i} fill={paletteColor(i)} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </ChartCard>
+        );
+      }
+
       default:
         return null;
     }
@@ -1011,6 +1078,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         {renderChart('reasons', false)}
         {renderChart('timeline', false)}
         <div className="lg:col-span-2">{renderChart('periods', false)}</div>
+        <div className="lg:col-span-2">{renderChart('sellers', false)}</div>
         <div className="lg:col-span-2">{renderChart('heatmap', false)}</div>
       </div>
 
