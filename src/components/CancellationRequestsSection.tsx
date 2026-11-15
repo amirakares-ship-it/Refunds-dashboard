@@ -948,7 +948,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
           <div className={`text-2xl font-black tracking-tight ${kpiValue}`}>{fmtNum(kpis.totalRequests)}</div>
         </KpiBox>
 
-        <KpiBox isLight={isLight} title="Amount of Refunds (EGP)" icon={<CircleDollarSign className="w-3.5 h-3.5" />} accent="from-emerald-500 to-teal-500">
+        <KpiBox isLight={isLight} title="Amount of Refunds" icon={<CircleDollarSign className="w-3.5 h-3.5" />} accent="from-emerald-500 to-teal-500">
           <div className="text-2xl font-black tracking-tight text-emerald-500">EGP {fmtShort(kpis.refundAmount)}</div>
           <div className={`flex items-center justify-between mt-2 pt-1.5 border-t text-[11px] font-mono ${isLight ? 'border-slate-100 text-slate-500' : 'border-slate-800/60 text-slate-400'}`}>
             <span>EGP {fmtMoney(kpis.refundAmount)}</span>

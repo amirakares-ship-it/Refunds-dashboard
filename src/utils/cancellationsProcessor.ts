@@ -444,8 +444,8 @@ export interface CancellationKpis {
   periodCounts: { name: string; count: number }[];
   typeCounts: { name: string; count: number }[];
   refundAmount: number; // EGP: Cancelled only, International (WDI) excluded
-  companiesRefund: number; // part of refundAmount: payment method = Aman / Ollin / Premium / Contact / Fastrack
-  remainingRefund: number; // part of refundAmount: all other payment methods
+  companiesRefund: number; // Aman / Ollin / Premium / Contact / Fastrack: مبلغ الاسترداد الكلي only
+  remainingRefund: number; // other payment methods (both columns) + رد للعميل of the company rows
   companiesCount: number; // Cancelled requests paid by Aman / Ollin / Premium / Contact / Fastrack
   remainingCount: number; // Cancelled requests paid by any other method (non-international)
   refundCount: number; // Cancelled non-international requests
@@ -491,8 +491,13 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
     } else {
       if (cancelled) {
         refundAmount += refundSum(r);
-        if (isCompanyPayment(r.paymentMethod)) companiesRefund += refundSum(r);
-        else remainingRefund += refundSum(r);
+        if (isCompanyPayment(r.paymentMethod)) {
+          // Companies: مبلغ الاسترداد الكلي only; their "رد للعميل" amount goes to Remaining
+          companiesRefund += r.refundTotal || 0;
+          remainingRefund += r.refundCompanies || 0;
+        } else {
+          remainingRefund += refundSum(r);
+        }
       }
       if (cancelled) {
         refundCount += 1;
