@@ -306,6 +306,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
   const [periodClub, setPeriodClub] = useState('ALL');
   const [periodPay, setPeriodPay] = useState('ALL');
   const [periodStatus, setPeriodStatus] = useState('ALL');
+  const [periodView, setPeriodView] = useState<'chart' | 'table'>('chart');
   const [exMetric, setExMetric] = useState<'both' | 'count' | 'amount'>('count');
   const [heatMode, setHeatMode] = useState<'top10' | 'all'>('top10');
 
@@ -615,6 +616,8 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         return (
           <ChartCard chartId={id} title="Subscription Period (Count)" icon={<CalendarClock className="w-4 h-4" />} {...common}
             controls={<>
+              <Segmented isLight={isLight} value={periodView} onChange={setPeriodView}
+                options={[{ id: 'chart', label: 'Chart' }, { id: 'table', label: 'Table' }]} />
               {chartFilters(periodClub, setPeriodClub, periodPay, setPeriodPay)}
               <Select compact label="Status:" value={periodStatus} onChange={setPeriodStatus} isLight={isLight}>
                 <option value="ALL">All</option>
@@ -622,7 +625,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
               </Select>
             </>}
             footer={<><span>{noDays > 0 ? `${fmtNum(noDays)} requests without subscription/request date (not shown)` : 'Tenure = request date − subscription date (same as All Refunds)'}</span><span className="font-mono font-bold text-indigo-500">{fmtNum(total)} requests</span></>}>
-            {total === 0 ? <Empty isLight={isLight} /> : (
+            {total === 0 ? <Empty isLight={isLight} /> : periodView === 'table' ? null : (
               <div className={h}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
@@ -648,8 +651,8 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                 </ResponsiveContainer>
               </div>
             )}
-            {total > 0 && (
-              <div className={`mt-4 overflow-auto rounded-xl border ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+            {total > 0 && periodView === 'table' && (
+              <div className={`overflow-auto rounded-xl border ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
                 <table className="w-full text-xs border-collapse">
                   <thead>
                     <tr className={isLight ? 'bg-slate-100 text-slate-700' : 'bg-slate-950 text-slate-300'}>
@@ -657,6 +660,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                       <th className="px-3 py-2 text-left font-bold">Tenure</th>
                       <th className="px-3 py-2 text-left font-bold">تصنيف فترة الاشتراك (sheet)</th>
                       <th className="px-3 py-2 text-right font-bold">Requests</th>
+                      <th className="px-3 py-2 text-right font-bold">%</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -674,6 +678,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                           </div>
                         </td>
                         <td className={`px-3 py-1.5 text-right font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(row.total)}</td>
+                        <td className="px-3 py-1.5 text-right font-mono font-bold text-indigo-500">{scoped.length ? ((row.total / scoped.length) * 100).toFixed(1) : '0.0'}%</td>
                       </tr>
                     ))}
                   </tbody>

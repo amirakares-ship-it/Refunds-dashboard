@@ -612,7 +612,7 @@ export function requestTimeline(records: CancellationRecord[]) {
 /* ---------------------------------------------------------------------
  *  Period buckets used by the Period filter and the Subscription Period chart
  * ------------------------------------------------------------------- */
-export const PERIOD_BUCKETS = ['< 1 Month', '1 - 3 Months', '3 - 6 Months', '6 - 12 Months', '1 Year', '2 Years', '3+ Years'];
+export const PERIOD_BUCKETS = ['< 1 Month', '1 - 3 Months', '3 - 6 Months', '6 - 12 Months', '2 Years', '3 Years', '4+ Years'];
 
 const toDate = (iso: string): Date | null => {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -647,9 +647,9 @@ function bucketFromMonths(m: number): string {
   if (m < 3) return '1 - 3 Months';
   if (m < 6) return '3 - 6 Months';
   if (m < 12) return '6 - 12 Months';
-  if (m < 24) return '1 Year';
-  if (m < 36) return '2 Years';
-  return '3+ Years';
+  if (m < 24) return '2 Years';
+  if (m < 36) return '3 Years';
+  return '4+ Years';
 }
 
 /** Bucket of a request ('' when the subscription date or request date is missing). */
@@ -663,9 +663,9 @@ export const PERIOD_RANGES: Record<string, string> = {
   '1 - 3 Months': '1 to < 3 months',
   '3 - 6 Months': '3 to < 6 months',
   '6 - 12 Months': '6 to < 12 months',
-  '1 Year': '12 to < 24 months',
-  '2 Years': '24 to < 36 months',
-  '3+ Years': '36 months or more',
+  '2 Years': '12 to < 24 months',
+  '3 Years': '24 to < 36 months',
+  '4+ Years': '36 months or more',
 };
 
 /** For each bucket: which values of تصنيف فترة الاشتراك (from the sheet) fall inside it. Used to double-check the day limits. */
