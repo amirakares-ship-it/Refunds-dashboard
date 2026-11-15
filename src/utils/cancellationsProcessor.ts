@@ -372,7 +372,7 @@ export function filterCancellations(records: CancellationRecord[], f: Cancellati
     if (f.club !== 'ALL' && label(r.club) !== f.club) return false;
     if (f.year !== 'ALL' && yearOf(r.approvalDate) !== f.year) return false;
     if (f.type !== 'ALL' && label(r.membershipType) !== f.type) return false;
-    if (f.period !== 'ALL' && label(r.periodClass) !== f.period) return false;
+    if (f.period !== 'ALL' && periodBucket(r) !== f.period) return false;
     return true;
   });
 }
@@ -427,7 +427,7 @@ export function buildFilterOptions(records: CancellationRecord[]): FilterOptions
     clubs: uniqueSorted(records.map(r => label(r.club))),
     years: Array.from(new Set(records.map(r => yearOf(r.approvalDate)).filter(Boolean))).sort(),
     types: uniqueSorted(records.map(r => label(r.membershipType))),
-    periods: orderedPeriods(records),
+    periods: PERIOD_BUCKETS.filter(b => records.some(r => periodBucket(r) === b)),
     paymentGroups: PAYMENT_GROUP_ORDER.filter(g => groups.has(g)),
     paymentOptions: uniqueSorted(records.map(r => label(r.paymentMethod))),
     statuses: uniqueSorted(records.map(r => label(r.status))),
@@ -609,29 +609,94 @@ export function requestTimeline(records: CancellationRecord[]) {
   return Array.from(map, ([ym, v]) => ({ ym, month: monthLabel(ym), ...v })).sort((a, b) => a.ym.localeCompare(b.ym));
 }
 
-/** Periods of 5 years or more (e.g. "5 years", "over 5 years") are shown together as "Else". */
-export const PERIOD_ELSE_LABEL = 'Else';
-export function isElsePeriod(en: string): boolean {
-  return /^(over )?(\d+) years$/.test(en) && parseInt(en.replace(/\D+/g, ''), 10) >= 5;
+/* ---------------------------------------------------------------------
+ *  Period buckets used by the Period filter and the Subscription Period chart
+ * ------------------------------------------------------------------- */
+export const PERIOD_BUCKETS = ['< 1 Month', '1 - 3 Months', '3 - 6 Months', '6 - 12 Months', '1 Year', '2 Years', '3+ Years'];
+
+const toDate = (iso: string): Date | null => {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+};
+
+/**
+ * Tenure in months = تاريخ الطلب - تاريخ الاشتراك.
+ * Same calculation as the "Member Tenure & Days Distribution" chart on the All Refunds page
+ * (calendar months + fraction of a month). null when one of the dates is missing.
+ */
+export function tenureMonths(r: CancellationRecord): number | null {
+  const start = toDate(r.subscriptionDate);
+  const req = toDate(r.requestDate);
+  if (!start || !req) return null;
+  const yearDiff = req.getFullYear() - start.getFullYear();
+  const monthDiff = req.getMonth() - start.getMonth();
+  const dayDiff = req.getDate() - start.getDate();
+  let total = yearDiff * 12 + monthDiff;
+  if (dayDiff < 0) {
+    const prevMonthDays = new Date(req.getFullYear(), req.getMonth(), 0).getDate();
+    total += dayDiff / (prevMonthDays || 30);
+  } else if (dayDiff > 0) {
+    const currMonthDays = new Date(req.getFullYear(), req.getMonth() + 1, 0).getDate();
+    total += dayDiff / (currMonthDays || 30);
+  }
+  return Math.max(0, parseFloat(total.toFixed(2)));
 }
 
-export function periodDistribution(records: CancellationRecord[], order: string[]) {
-  const map = new Map<string, number>();
-  records.forEach(r => map.set(label(r.periodClass), (map.get(label(r.periodClass)) || 0) + 1));
-  const out: { name: string; count: number }[] = [];
-  let elseCount = 0;
-  order.forEach(raw => {
-    const en = periodEn(raw);
-    const count = map.get(raw) || 0;
-    // also catches unit-less labels such as "5 فأكثر" (5 and over)
-    const t = toLatinDigits(raw);
-    const bareOver = /(\d+)/.test(t) && !/يوم|ايام|أيام|شهر|شهور|day|month/i.test(t)
-      && /اكثر|أكثر|اكتر|أكتر|over|more|\+/i.test(t) && parseInt((t.match(/\d+/) || ['0'])[0], 10) >= 5;
-    if (isElsePeriod(en) || bareOver) elseCount += count;
-    else out.push({ name: en, count });
+function bucketFromMonths(m: number): string {
+  if (m < 1) return '< 1 Month';
+  if (m < 3) return '1 - 3 Months';
+  if (m < 6) return '3 - 6 Months';
+  if (m < 12) return '6 - 12 Months';
+  if (m < 24) return '1 Year';
+  if (m < 36) return '2 Years';
+  return '3+ Years';
+}
+
+/** Bucket of a request ('' when the subscription date or request date is missing). */
+export function periodBucket(r: CancellationRecord): string {
+  const m = tenureMonths(r);
+  return m === null ? '' : bucketFromMonths(m);
+}
+
+export const PERIOD_RANGES: Record<string, string> = {
+  '< 1 Month': 'less than 1 month',
+  '1 - 3 Months': '1 to < 3 months',
+  '3 - 6 Months': '3 to < 6 months',
+  '6 - 12 Months': '6 to < 12 months',
+  '1 Year': '12 to < 24 months',
+  '2 Years': '24 to < 36 months',
+  '3+ Years': '36 months or more',
+};
+
+/** For each bucket: which values of تصنيف فترة الاشتراك (from the sheet) fall inside it. Used to double-check the day limits. */
+export function periodCheck(records: CancellationRecord[]) {
+  const rows = new Map<string, { total: number; labels: Map<string, number> }>();
+  records.forEach(r => {
+    const b = periodBucket(r) || 'No dates';
+    const row = rows.get(b) || { total: 0, labels: new Map<string, number>() };
+    row.total += 1;
+    const l = label(r.periodClass);
+    row.labels.set(l, (row.labels.get(l) || 0) + 1);
+    rows.set(b, row);
   });
-  if (elseCount > 0) out.push({ name: PERIOD_ELSE_LABEL, count: elseCount });
-  return out;
+  return [...PERIOD_BUCKETS, 'No dates']
+    .filter(b => rows.has(b))
+    .map(b => ({
+      bucket: b,
+      range: PERIOD_RANGES[b] || '—',
+      total: rows.get(b)!.total,
+      labels: Array.from(rows.get(b)!.labels, ([name, count]) => ({ name, count })).sort((a, c) => c.count - a.count),
+    }));
+}
+
+export function periodDistribution(records: CancellationRecord[]) {
+  const map = new Map<string, number>();
+  records.forEach(r => {
+    const b = periodBucket(r);
+    if (!b) return; // missing subscription/request date -> not part of the chart
+    map.set(b, (map.get(b) || 0) + 1);
+  });
+  return PERIOD_BUCKETS.map(name => ({ name, count: map.get(name) || 0 }));
 }
 
 /* ---------------------------------------------------------------------

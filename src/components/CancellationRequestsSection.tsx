@@ -15,8 +15,8 @@ import {
   CancellationFilters, CancellationRecord, DEFAULT_CANCELLATION_FILTERS, PAYMENT_GROUP_COLORS,
   applyChartFilter, buildFilterOptions, calculateCancellationKpis, clubDistribution, filterCancellations,
   fmtMoney, fmtNum, fmtShort, paletteColor, parseCancellationWorkbook, paymentBreakdown,
-  periodDistribution, reasonDistribution, requestTimeline,
-  exceptionStats, reasonClubHeatmap, periodEn, UNSPECIFIED,
+  periodDistribution, periodBucket, periodCheck, reasonDistribution, requestTimeline,
+  exceptionStats, reasonClubHeatmap, UNSPECIFIED,
 } from '../utils/cancellationsProcessor';
 import { loadCancellations, loadLocalCancellations, saveCancellations } from '../utils/cancellationsStore';
 
@@ -334,7 +334,6 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
   }, []);
 
   const options = useMemo(() => buildFilterOptions(records), [records]);
-  const periodOrder = options.periods;
   const filtered = useMemo(() => filterCancellations(records, filters), [records, filters]);
   const kpis = useMemo(() => calculateCancellationKpis(filtered), [filtered]);
 
@@ -610,7 +609,8 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
       /* 5. Period --------------------------------------------------------- */
       case 'periods': {
         const scoped = applyChartFilter(filtered, periodClub, periodPay).filter(r => periodStatus === 'ALL' || (r.status || UNSPECIFIED) === periodStatus);
-        const data = periodDistribution(scoped, periodOrder);
+        const data = periodDistribution(scoped);
+        const noDays = scoped.filter(r => !periodBucket(r)).length;
         const total = data.reduce((s, d) => s + d.count, 0);
         return (
           <ChartCard chartId={id} title="Subscription Period (Count)" icon={<CalendarClock className="w-4 h-4" />} {...common}
@@ -621,7 +621,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                 {options.statuses.map(st => <option key={st} value={st}>{st}</option>)}
               </Select>
             </>}
-            footer={<><span>Ordered from shortest to longest period</span><span className="font-mono font-bold text-indigo-500">{fmtNum(total)} requests</span></>}>
+            footer={<><span>{noDays > 0 ? `${fmtNum(noDays)} requests without subscription/request date (not shown)` : 'Tenure = request date − subscription date (same as All Refunds)'}</span><span className="font-mono font-bold text-indigo-500">{fmtNum(total)} requests</span></>}>
             {total === 0 ? <Empty isLight={isLight} /> : (
               <div className={h}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -646,6 +646,38 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+              </div>
+            )}
+            {total > 0 && (
+              <div className={`mt-4 overflow-auto rounded-xl border ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className={isLight ? 'bg-slate-100 text-slate-700' : 'bg-slate-950 text-slate-300'}>
+                      <th className="px-3 py-2 text-left font-bold">Period</th>
+                      <th className="px-3 py-2 text-left font-bold">Tenure</th>
+                      <th className="px-3 py-2 text-left font-bold">تصنيف فترة الاشتراك (sheet)</th>
+                      <th className="px-3 py-2 text-right font-bold">Requests</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {periodCheck(scoped).map(row => (
+                      <tr key={row.bucket} className={`border-t ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                        <td className={`px-3 py-1.5 font-bold whitespace-nowrap ${isLight ? 'text-slate-900' : 'text-white'}`}>{row.bucket}</td>
+                        <td className={`px-3 py-1.5 whitespace-nowrap ${subText}`}>{row.range}</td>
+                        <td className="px-3 py-1.5" dir="auto">
+                          <div className="flex flex-wrap gap-1.5">
+                            {row.labels.map(l => (
+                              <span key={l.name} className={`px-2 py-0.5 rounded-full border font-semibold ${isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-slate-950 border-slate-800 text-slate-300'}`}>
+                                {l.name} <span className="text-indigo-500 font-black">({fmtNum(l.count)})</span>
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className={`px-3 py-1.5 text-right font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(row.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </ChartCard>
@@ -865,7 +897,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                   ['Club', 'club', clubOptionsEls],
                   ['Year (approval date)', 'year', <><option value="ALL">All</option>{options.years.map(y => <option key={y} value={y}>{y}</option>)}</>],
                   ['Type', 'type', <><option value="ALL">All</option>{options.types.map(t => <option key={t} value={t}>{t}</option>)}</>],
-                  ['Period', 'period', <><option value="ALL">All</option>{options.periods.map(pd => <option key={pd} value={pd}>{periodEn(pd)}</option>)}</>],
+                  ['Period', 'period', <><option value="ALL">All</option>{options.periods.map(pd => <option key={pd} value={pd}>{pd}</option>)}</>],
                 ] as [string, keyof CancellationFilters, React.ReactNode][]).map(([lbl, key, opts]) => (
                   <div key={key} className="space-y-1">
                     <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{lbl}</label>
