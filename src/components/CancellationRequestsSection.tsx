@@ -296,15 +296,15 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
 
   // Chart-level state
   const [payMode, setPayMode] = useState<'group' | 'option'>('group');
-  const [clubMetric, setClubMetric] = useState<'both' | 'count' | 'amount'>('both');
+  const [clubMetric, setClubMetric] = useState<'both' | 'count' | 'amount'>('count');
   const [reasonClub, setReasonClub] = useState('ALL');
   const [reasonPay, setReasonPay] = useState('ALL');
   const [timeClub, setTimeClub] = useState('ALL');
   const [timePay, setTimePay] = useState('ALL');
-  const [timeMetric, setTimeMetric] = useState<'both' | 'count' | 'amount'>('both');
+  const [timeMetric, setTimeMetric] = useState<'both' | 'count' | 'amount'>('count');
   const [periodClub, setPeriodClub] = useState('ALL');
   const [periodPay, setPeriodPay] = useState('ALL');
-  const [exMetric, setExMetric] = useState<'both' | 'count' | 'amount'>('both');
+  const [exMetric, setExMetric] = useState<'both' | 'count' | 'amount'>('count');
   const [heatMode, setHeatMode] = useState<'top10' | 'all'>('top10');
 
   // The filter icon lives in the app header (next to the presentation icon) — rendered through a portal.
@@ -371,6 +371,15 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
   const axis = isLight ? '#64748b' : '#94a3b8';
   const grid = isLight ? '#e2e8f0' : '#1e293b';
   const subText = isLight ? 'text-slate-600' : 'text-slate-400';
+
+  // Footer total follows the Count / Amount / Both selector of the chart
+  const metricTotals = (metric: 'both' | 'count' | 'amount', count: number, amount: number) => (
+    <span className="font-mono font-bold text-indigo-500">
+      {metric !== 'amount' && `${fmtNum(count)} requests`}
+      {metric === 'both' && ' · '}
+      {metric !== 'count' && `Refund: EGP ${fmtMoney(amount)}`}
+    </span>
+  );
 
   /* ---------------- chart renderers ---------------- */
   const renderChart = (id: string, full: boolean): React.ReactNode => {
@@ -459,11 +468,11 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
           <ChartCard chartId={id} title="Distribution by Clubs (Count & Amount)" icon={<Landmark className="w-4 h-4" />} {...common}
             controls={<Segmented isLight={isLight} value={clubMetric} onChange={setClubMetric}
               options={[{ id: 'both', label: 'Both' }, { id: 'count', label: 'Count' }, { id: 'amount', label: 'Amount' }]} />}
-            footer={<><span>{data.length} clubs</span><span className="font-mono font-bold text-indigo-500">Refund: EGP {fmtMoney(totalAmount)}</span></>}>
+            footer={<><span>{data.length} clubs</span>{metricTotals(clubMetric, data.reduce((a, d) => a + d.count, 0), totalAmount)}</>}>
             {data.length === 0 ? <Empty isLight={isLight} /> : (
               <div className={h}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={data} margin={{ top: 15, right: 10, left: 0, bottom: 5 }}>
+                  <ComposedChart data={data} margin={{ top: 25, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={grid} />
                     <XAxis dataKey="name" interval={0} angle={data.length > 5 ? -25 : 0} textAnchor={data.length > 5 ? 'end' : 'middle'}
                       height={data.length > 5 ? 70 : 30} tick={{ fill: axis, fontSize: 11, fontWeight: 600 }} />
@@ -481,8 +490,10 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                       );
                     }} />
                     <Legend verticalAlign="top" height={30} wrapperStyle={{ fontSize: 11, color: axis }} />
-                    {showCount && <Bar yAxisId="l" dataKey="count" name="Requests" fill="#6366f1" radius={[4, 4, 0, 0]} />}
-                    {showAmount && <Bar yAxisId="r" dataKey="amount" name="Refund amount (EGP)" fill="#10b981" radius={[4, 4, 0, 0]} />}
+                    {showCount && <Bar yAxisId="l" dataKey="count" name="Requests" fill="#6366f1" radius={[4, 4, 0, 0]}
+                      label={{ position: 'top', fill: axis, fontSize: 10, fontWeight: 700 }} />}
+                    {showAmount && <Bar yAxisId="r" dataKey="amount" name="Refund amount (EGP)" fill="#10b981" radius={[4, 4, 0, 0]}
+                      label={{ position: 'top', fill: axis, fontSize: 10, fontWeight: 700, formatter: (v: number) => fmtShort(v) }} />}
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -547,7 +558,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
               {chartFilters(timeClub, setTimeClub, timePay, setTimePay)}
             </>}
             footer={<><span>{data.length} months{noDate > 0 ? ` · ${noDate} without request date` : ''}</span>
-              <span className="font-mono font-bold text-indigo-500">{fmtNum(data.reduce((s, d) => s + d.count, 0))} requests</span></>}>
+              {metricTotals(timeMetric, data.reduce((a, d) => a + d.count, 0), data.reduce((a, d) => a + d.amount, 0))}</>}>
             {data.length === 0 ? <Empty isLight={isLight} /> : (
               <div className={h}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -729,7 +740,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
           <ChartCard chartId={id} title="Exceptions (الاستثناءات)" icon={<ShieldAlert className="w-4 h-4" />} {...common}
             controls={<Segmented isLight={isLight} value={exMetric} onChange={setExMetric}
               options={[{ id: 'both', label: 'Both' }, { id: 'count', label: 'Count' }, { id: 'amount', label: 'Amount' }]} />}
-            footer={<><span>{st.byType.length} exception types</span><span className="font-mono font-bold text-indigo-500">Refund: EGP {fmtMoney(st.amount)}</span></>}>
+            footer={<><span>{st.byType.length} exception types</span>{metricTotals(exMetric, st.count, st.amount)}</>}>
             {st.count === 0 ? <Empty isLight={isLight} /> : (
               <>
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -1011,6 +1022,16 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         </div>
       </div>
 
+      {/* Type counts (نوع العضوية) */}
+      <div>
+        <SectionTitle isLight={isLight} icon={<Layers className="w-4 h-4" />} text="Count by Type (نوع العضوية)" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+          {kpis.typeCounts.map((t, i) => (
+            <MiniCard key={t.name} isLight={isLight} name={t.name} count={t.count} total={kpis.totalRequests} color={paletteColor(i + 4)} />
+          ))}
+        </div>
+      </div>
+
       {/* ------------------------------- Charts ------------------------------- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {renderChart('payment_methods', false)}
@@ -1056,18 +1077,23 @@ const SectionTitle: React.FC<{ isLight: boolean; icon: React.ReactNode; text: st
   </div>
 );
 
-const MiniCard: React.FC<{ isLight: boolean; name: string; count: number; total: number; color: string }> = ({ isLight, name, count, total, color }) => (
-  <div className={`rounded-2xl p-4 border relative overflow-hidden ${
-    isLight ? 'bg-white border-slate-200/80 text-slate-800 shadow-xs' : 'bg-slate-900 border-slate-800 text-slate-100 shadow-md'
-  }`}>
-    <div className="absolute top-0 left-0 right-0 h-1" style={{ background: color }} />
-    <div className={`text-xs font-bold mb-2 truncate ${isLight ? 'text-slate-700' : 'text-slate-300'}`} dir="auto" title={name}>{name}</div>
-    <div className={`text-2xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(count)}</div>
-    <div className={`mt-2 pt-1.5 border-t text-[11px] font-mono font-bold ${isLight ? 'border-slate-100' : 'border-slate-800/60'}`} style={{ color }}>
-      {total ? ((count / total) * 100).toFixed(1) : '0.0'}%
+const MiniCard: React.FC<{ isLight: boolean; name: string; count: number; total: number; color: string }> = ({ isLight, name, count, total, color }) => {
+  const pct = total ? (count / total) * 100 : 0;
+  return (
+    <div className="rounded-2xl p-4 border relative overflow-hidden shadow-xs"
+      style={{ background: `${color}${isLight ? '1f' : '2e'}`, borderColor: `${color}66` }}>
+      <div className="absolute top-0 left-0 right-0 h-1" style={{ background: color }} />
+      <div className={`text-xs font-bold mb-2 truncate ${isLight ? 'text-slate-700' : 'text-slate-200'}`} dir="auto" title={name}>{name}</div>
+      <div className="flex items-center justify-between gap-2">
+        <span className={`text-2xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(count)}</span>
+        <span className="text-sm font-black px-2.5 py-0.5 rounded-full text-white shadow-xs" style={{ background: color }}>{pct.toFixed(1)}%</span>
+      </div>
+      <div className={`mt-2.5 h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-white/70' : 'bg-slate-950/50'}`}>
+        <div className="h-full rounded-full" style={{ width: `${Math.min(100, pct)}%`, background: color }} />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Empty: React.FC<{ isLight: boolean }> = ({ isLight }) => (
   <div className={`h-48 flex items-center justify-center text-sm ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>

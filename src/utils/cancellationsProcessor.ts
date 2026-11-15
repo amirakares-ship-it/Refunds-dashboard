@@ -439,6 +439,7 @@ export interface CancellationKpis {
   totalRequests: number;
   statusCounts: { name: string; count: number }[];
   periodCounts: { name: string; count: number }[];
+  typeCounts: { name: string; count: number }[];
   refundAmount: number; // EGP: Cancelled only, International (WDI) excluded
   companiesRefund: number; // part of refundAmount: payment method = Aman / Ollin / Premium / Contact / Fastrack
   remainingRefund: number; // part of refundAmount: all other payment methods
@@ -457,6 +458,9 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
 
   const periodMap = new Map<string, number>();
   records.forEach(r => periodMap.set(label(r.periodClass), (periodMap.get(label(r.periodClass)) || 0) + 1));
+
+  const typeMap = new Map<string, number>();
+  records.forEach(r => typeMap.set(label(r.membershipType), (typeMap.get(label(r.membershipType)) || 0) + 1));
 
   let refundAmount = 0;
   let companiesRefund = 0;
@@ -499,6 +503,7 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
   return {
     totalRequests: records.length,
     statusCounts: Array.from(statusMap, ([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
+    typeCounts: Array.from(typeMap, ([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
     periodCounts: periodOrder.map(name => ({ name, count: periodMap.get(name) || 0 })),
     refundAmount,
     companiesRefund,
