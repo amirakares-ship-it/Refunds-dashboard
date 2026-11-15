@@ -7,7 +7,7 @@ import {
 import {
   AlertCircle, Banknote, CalendarClock, CheckCircle2, CircleDollarSign, FileSpreadsheet, Filter,
   Globe2, Hash, Landmark, Layers, ListChecks, Loader2, Maximize2, MessageSquareText, PieChart as PieIcon,
-  RotateCcw, Scale, ShieldAlert, ShieldCheck, TrendingUp, Upload, X, LayoutGrid,
+  RotateCcw, ShieldAlert, ShieldCheck, TrendingUp, Upload, X, LayoutGrid,
 } from 'lucide-react';
 import { ChartModal } from './ChartModal';
 import { ChartModalState } from '../types';
@@ -16,7 +16,7 @@ import {
   applyChartFilter, buildFilterOptions, calculateCancellationKpis, clubDistribution, filterCancellations,
   fmtMoney, fmtNum, fmtShort, paletteColor, parseCancellationWorkbook, paymentBreakdown,
   periodDistribution, reasonDistribution, requestTimeline,
-  decisionStats, exceptionStats, reasonClubHeatmap, periodEn,
+  exceptionStats, reasonClubHeatmap, periodEn,
 } from '../utils/cancellationsProcessor';
 import { loadCancellations, loadLocalCancellations, saveCancellations } from '../utils/cancellationsStore';
 
@@ -410,11 +410,11 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
             {data.length === 0 ? <Empty isLight={isLight} /> : (
               <div className="flex flex-col md:flex-row items-center gap-4">
                 {/* Donut (left) */}
-                <div className={`relative shrink-0 w-full md:w-1/2 ${full ? 'h-[380px]' : 'h-64'}`}>
+                <div className={`relative w-full md:flex-1 min-w-0 ${full ? 'h-[460px]' : 'h-[340px]'}`}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={data} dataKey={key} nameKey="name" cx="50%" cy="50%" innerRadius={full ? 80 : 55}
-                        outerRadius={full ? 150 : 105} paddingAngle={2} labelLine={false} label={pieLabel}>
+                      <Pie data={data} dataKey={key} nameKey="name" cx="50%" cy="50%" innerRadius={full ? 100 : 75}
+                        outerRadius={full ? 185 : 140} paddingAngle={2} labelLine={false} label={pieLabel}>
                         {data.map((d, i) => <Cell key={i} fill={d.fill} stroke={isLight ? '#fff' : '#0f172a'} strokeWidth={2} />)}
                       </Pie>
                       <Tooltip content={({ active, payload }: any) => {
@@ -438,16 +438,16 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                   {/* Total in the centre of the donut */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <span className={`text-[10px] font-bold uppercase tracking-wider ${subText}`}>{key === 'count' ? 'Requests' : 'Refund EGP'}</span>
-                    <span className={`${full ? 'text-3xl' : 'text-2xl'} font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    <span className={`${full ? 'text-4xl' : 'text-3xl'} font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
                       {key === 'count' ? fmtNum(total) : fmtShort(total)}
                     </span>
                   </div>
                 </div>
 
                 {/* Legend / numbers (right) */}
-                <div className={`w-full md:w-1/2 space-y-2 ${!full && sorted.length > 6 ? 'max-h-64 overflow-y-auto pr-1' : ''}`}>
+                <div className={`w-full md:w-[270px] shrink-0 space-y-1.5 ${!full && sorted.length > 6 ? 'max-h-[340px] overflow-y-auto pr-1' : ''}`}>
                   {sorted.map(d => (
-                    <div key={d.name} className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 ${
+                    <div key={d.name} className={`px-2.5 py-1.5 rounded-xl border flex items-center justify-between gap-2 ${
                       isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/70 border-slate-800'}`}
                       style={{ borderLeft: `4px solid ${d.fill}` }}>
                       <div className="min-w-0">
@@ -637,101 +637,6 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                     <Bar dataKey="count" radius={[4, 4, 0, 0]} label={{ position: 'top', fill: axis, fontSize: 11, fontWeight: 700 }}>
                       {data.map((_, i) => <Cell key={i} fill={paletteColor(i)} />)}
                     </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </ChartCard>
-        );
-      }
-
-      /* 6. Committee decisions -------------------------------------------- */
-      case 'decisions': {
-        const st = decisionStats(filtered);
-        const colorOf = (d: { kind: string }, i: number) =>
-          d.kind === 'approved' ? '#10b981' : d.kind === 'rejected' ? '#ef4444' : paletteColor(i + 2);
-        const data = st.decisions.map((d, i) => ({ ...d, fill: colorOf(d, i) }));
-        const pct = (n: number) => (filtered.length ? ((n / filtered.length) * 100).toFixed(1) : '0.0');
-        const chip = (txt: string, n: number, color: string) => (
-          <div className={`px-3 py-2 rounded-xl border flex-1 min-w-[110px] ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/70 border-slate-800'}`}>
-            <div className="text-[11px] font-bold" style={{ color }}>{txt}</div>
-            <div className="flex items-baseline justify-between">
-              <span className={`text-xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(n)}</span>
-              <span className={`text-[10px] font-mono ${subText}`}>{pct(n)}%</span>
-            </div>
-          </div>
-        );
-        return (
-          <ChartCard chartId={id} title="Committee Decision (قرار اللجنة)" icon={<Scale className="w-4 h-4" />} {...common}
-            footer={<><span>{data.length} decision values</span>
-              <span className="font-mono font-bold text-indigo-500">
-                Approval rate: {st.approvalRate === null ? '—' : `${(st.approvalRate * 100).toFixed(1)}%`}
-              </span></>}>
-            {filtered.length === 0 ? <Empty isLight={isLight} /> : (
-              <>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {chip('Approved', st.approved, '#10b981')}
-                  {chip('Rejected', st.rejected, '#ef4444')}
-                  {(st.other > 0 || st.none > 0) && chip('Other / blank', st.other + st.none, '#94a3b8')}
-                </div>
-                <div className={full ? 'h-[330px]' : 'h-60'}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={data} dataKey="count" nameKey="name" cx="50%" cy="50%" innerRadius={full ? 55 : 40}
-                        outerRadius={full ? 125 : 90} paddingAngle={2} labelLine={false} label={pieLabel}>
-                        {data.map((d, i) => <Cell key={i} fill={d.fill} stroke={isLight ? '#fff' : '#0f172a'} strokeWidth={2} />)}
-                      </Pie>
-                      <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11, color: axis }} />
-                      <Tooltip content={({ active, payload }: any) => {
-                        if (!active || !payload?.length) return null;
-                        const d = payload[0].payload;
-                        return (
-                          <div className={tooltipBox}>
-                            <div className="font-bold text-white" dir="auto">{d.name}</div>
-                            <div className="text-slate-300">Requests: <strong className="text-white">{fmtNum(d.count)}</strong>
-                              <span className="text-slate-400"> ({pct(d.count)}%)</span></div>
-                          </div>
-                        );
-                      }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </>
-            )}
-          </ChartCard>
-        );
-      }
-
-      /* 7. Rejection reasons ---------------------------------------------- */
-      case 'rejections': {
-        const st = decisionStats(filtered);
-        const data = st.rejectionReasons;
-        const rowH = 30;
-        const height = full ? Math.max(380, data.length * rowH + 40) : Math.max(288, Math.min(data.length * rowH + 40, 460));
-        return (
-          <ChartCard chartId={id} title="Rejection Reasons (سبب الرفض)" icon={<AlertCircle className="w-4 h-4" />} {...common}
-            footer={<><span>{data.length} reasons</span><span className="font-mono font-bold text-rose-500">{fmtNum(st.rejectionTotal)} rejected requests</span></>}>
-            {data.length === 0 ? <Empty isLight={isLight} /> : (
-              <div style={{ height }} className={!full && data.length * rowH + 40 > 460 ? 'overflow-y-auto' : ''}>
-                <ResponsiveContainer width="100%" height={Math.max(height, data.length * rowH + 40)}>
-                  <BarChart data={data} layout="vertical" margin={{ top: 5, right: 40, left: 10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={grid} horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} tick={{ fill: axis, fontSize: 11 }} />
-                    <YAxis type="category" dataKey="name" width={full ? 260 : 170} interval={0}
-                      tick={{ fill: axis, fontSize: 11, fontWeight: 600 }}
-                      tickFormatter={(v: string) => (v.length > (full ? 40 : 26) ? v.slice(0, full ? 40 : 26) + '…' : v)} />
-                    <Tooltip cursor={{ fill: isLight ? '#f1f5f9' : '#1e293b55' }} content={({ active, payload }: any) => {
-                      if (!active || !payload?.length) return null;
-                      const d = payload[0].payload;
-                      return (
-                        <div className={tooltipBox}>
-                          <div className="font-bold text-white" dir="auto">{d.name}</div>
-                          <div className="text-slate-300">Requests: <strong className="text-white">{fmtNum(d.count)}</strong>
-                            <span className="text-slate-400"> ({st.rejectionTotal ? ((d.count / st.rejectionTotal) * 100).toFixed(1) : 0}%)</span></div>
-                        </div>
-                      );
-                    }} />
-                    <Bar dataKey="count" fill="#ef4444" radius={[0, 4, 4, 0]} label={{ position: 'right', fill: axis, fontSize: 11, fontWeight: 700 }} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1037,16 +942,6 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         </div>
       </div>
 
-      {/* Type counts (نوع العضوية) */}
-      <div>
-        <SectionTitle isLight={isLight} icon={<Layers className="w-4 h-4" />} text="Count by Type (نوع العضوية)" />
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-          {kpis.typeCounts.map((t, i) => (
-            <MiniCard key={t.name} isLight={isLight} name={t.name} count={t.count} total={kpis.totalRequests} color={paletteColor(i + 4)} />
-          ))}
-        </div>
-      </div>
-
       {/* ------------------------------- Charts ------------------------------- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {renderChart('payment_methods', false)}
@@ -1054,8 +949,6 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         {renderChart('reasons', false)}
         {renderChart('timeline', false)}
         <div className="lg:col-span-2">{renderChart('periods', false)}</div>
-        {renderChart('decisions', false)}
-        {renderChart('rejections', false)}
         <div className="lg:col-span-2">{renderChart('exceptions', false)}</div>
         <div className="lg:col-span-2">{renderChart('heatmap', false)}</div>
       </div>
