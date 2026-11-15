@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import {
   AlertCircle, Banknote, CalendarClock, CheckCircle2, CircleDollarSign, FileSpreadsheet, Filter,
-  Globe2, Hash, Landmark, Layers, ListChecks, Loader2, Maximize2, MessageSquareText, PieChart as PieIcon,
+  Clock, Globe2, Hash, Landmark, Layers, ListChecks, Loader2, Maximize2, MessageSquareText, PieChart as PieIcon,
   RotateCcw, ShieldAlert, ShieldCheck, TrendingUp, Upload, X, LayoutGrid,
 } from 'lucide-react';
 import { ChartModal } from './ChartModal';
@@ -15,7 +15,7 @@ import {
   CancellationFilters, CancellationRecord, DEFAULT_CANCELLATION_FILTERS, PAYMENT_GROUP_COLORS,
   applyChartFilter, buildFilterOptions, calculateCancellationKpis, clubDistribution, filterCancellations,
   fmtMoney, fmtNum, fmtShort, paletteColor, parseCancellationWorkbook, paymentBreakdown,
-  periodDistribution, periodBucket, periodCheck, reasonDistribution, requestTimeline,
+  periodDistribution, periodBucket, tenureTable, TENURE_GROUP_COLUMNS, reasonDistribution, requestTimeline,
   exceptionStats, reasonClubHeatmap, UNSPECIFIED,
 } from '../utils/cancellationsProcessor';
 import { loadCancellations, loadLocalCancellations, saveCancellations } from '../utils/cancellationsStore';
@@ -53,11 +53,12 @@ interface CardProps {
   isFullscreen: boolean;
   onExpand: (id: string, title: string) => void;
   controls?: React.ReactNode;
+  chips?: React.ReactNode;
   footer?: React.ReactNode;
   children: React.ReactNode;
 }
 
-const ChartCard: React.FC<CardProps> = ({ chartId, title, icon, isLight, isFullscreen, onExpand, controls, footer, children }) => (
+const ChartCard: React.FC<CardProps> = ({ chartId, title, icon, isLight, isFullscreen, onExpand, controls, chips, footer, children }) => (
   <div className={`rounded-2xl border shadow-md flex flex-col justify-between h-full ${isFullscreen ? 'p-4 sm:p-5' : 'p-5'} ${
     isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900 border-slate-800 text-slate-100'
   }`}>
@@ -86,6 +87,7 @@ const ChartCard: React.FC<CardProps> = ({ chartId, title, icon, isLight, isFulls
           )}
         </div>
       </div>
+      {chips}
       {children}
     </div>
     {footer && (
@@ -374,6 +376,31 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
   const grid = isLight ? '#e2e8f0' : '#1e293b';
   const subText = isLight ? 'text-slate-600' : 'text-slate-400';
 
+  // Clear "filtered by" chips
+  const payLabel = (v: string) => (v.startsWith('g:') || v.startsWith('o:') ? v.slice(2) : v);
+  const chipsRow = (items: { label: string; value: string; onClear?: () => void }[], big = false) => {
+    const active = items.filter(i => i.value !== 'ALL');
+    if (active.length === 0) return null;
+    return (
+      <div className={`flex flex-wrap items-center gap-2 ${big ? '' : 'mb-3'}`}>
+        <span className={`text-[11px] font-bold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Filtered by:</span>
+        {active.map(i => (
+          <span key={i.label} dir="auto"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-black bg-indigo-600 text-white shadow-sm shadow-indigo-600/30">
+            <span className="text-indigo-200 text-xs font-bold">{i.label}:</span> {payLabel(i.value)}
+            {i.onClear && (
+              <button onClick={i.onClear} className="ml-0.5 p-0.5 rounded-full hover:bg-white/20 cursor-pointer" title="Clear">
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </span>
+        ))}
+      </div>
+    );
+  };
+  const localChips = (club: string, pay: string, status = 'ALL') =>
+    chipsRow([{ label: 'Club', value: club }, { label: 'Payment', value: pay }, { label: 'Status', value: status }]);
+
   // Footer total follows the Count / Amount / Both selector of the chart
   const metricTotals = (metric: 'both' | 'count' | 'amount', count: number, amount: number) => (
     <span className="font-mono font-bold text-indigo-500">
@@ -525,7 +552,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         const rowH = 30;
         const height = full ? Math.max(380, data.length * rowH + 40) : Math.max(288, Math.min(data.length * rowH + 40, 460));
         return (
-          <ChartCard chartId={id} title="Cancellation Reasons (Count)" icon={<MessageSquareText className="w-4 h-4" />} {...common}
+          <ChartCard chartId={id} title="Cancellation Reasons (Count)" icon={<MessageSquareText className="w-4 h-4" />} {...common} chips={localChips(reasonClub, reasonPay)}
             controls={chartFilters(reasonClub, setReasonClub, reasonPay, setReasonPay)}
             footer={<><span>{data.length} reasons</span><span className="font-mono font-bold text-indigo-500">{fmtNum(total)} requests</span></>}>
             {data.length === 0 ? <Empty isLight={isLight} /> : (
@@ -567,7 +594,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         const showAmount = timeMetric !== 'count';
         const noDate = scoped.filter(r => !r.requestDate).length;
         return (
-          <ChartCard chartId={id} title="Timeline by Request Date (Month)" icon={<TrendingUp className="w-4 h-4" />} {...common}
+          <ChartCard chartId={id} title="Timeline by Request Date (Month)" icon={<TrendingUp className="w-4 h-4" />} {...common} chips={localChips(timeClub, timePay)}
             controls={<>
               <Segmented isLight={isLight} value={timeMetric} onChange={setTimeMetric}
                 options={[{ id: 'both', label: 'Both' }, { id: 'count', label: 'Count' }, { id: 'amount', label: 'Amount' }]} />
@@ -614,7 +641,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         const noDays = scoped.filter(r => !periodBucket(r)).length;
         const total = data.reduce((s, d) => s + d.count, 0);
         return (
-          <ChartCard chartId={id} title="Subscription Period (Count)" icon={<CalendarClock className="w-4 h-4" />} {...common}
+          <ChartCard chartId={id} title="Subscription Period (Count)" icon={<CalendarClock className="w-4 h-4" />} {...common} chips={localChips(periodClub, periodPay, periodStatus)}
             controls={<>
               <Segmented isLight={isLight} value={periodView} onChange={setPeriodView}
                 options={[{ id: 'chart', label: 'Chart' }, { id: 'table', label: 'Table' }]} />
@@ -651,40 +678,73 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                 </ResponsiveContainer>
               </div>
             )}
-            {total > 0 && periodView === 'table' && (
-              <div className={`overflow-auto rounded-xl border ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
-                <table className="w-full text-xs border-collapse">
-                  <thead>
-                    <tr className={isLight ? 'bg-slate-100 text-slate-700' : 'bg-slate-950 text-slate-300'}>
-                      <th className="px-3 py-2 text-left font-bold">Period</th>
-                      <th className="px-3 py-2 text-left font-bold">Tenure</th>
-                      <th className="px-3 py-2 text-left font-bold">تصنيف فترة الاشتراك (sheet)</th>
-                      <th className="px-3 py-2 text-right font-bold">Requests</th>
-                      <th className="px-3 py-2 text-right font-bold">%</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {periodCheck(scoped).map(row => (
-                      <tr key={row.bucket} className={`border-t ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
-                        <td className={`px-3 py-1.5 font-bold whitespace-nowrap ${isLight ? 'text-slate-900' : 'text-white'}`}>{row.bucket}</td>
-                        <td className={`px-3 py-1.5 whitespace-nowrap ${subText}`}>{row.range}</td>
-                        <td className="px-3 py-1.5" dir="auto">
-                          <div className="flex flex-wrap gap-1.5">
-                            {row.labels.map(l => (
-                              <span key={l.name} className={`px-2 py-0.5 rounded-full border font-semibold ${isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-slate-950 border-slate-800 text-slate-300'}`}>
-                                {l.name} <span className="text-indigo-500 font-black">({fmtNum(l.count)})</span>
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className={`px-3 py-1.5 text-right font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(row.total)}</td>
-                        <td className="px-3 py-1.5 text-right font-mono font-bold text-indigo-500">{scoped.length ? ((row.total / scoped.length) * 100).toFixed(1) : '0.0'}%</td>
+            {total > 0 && periodView === 'table' && (() => {
+              const tt = tenureTable(scoped);
+              const colColors: Record<string, [string, string]> = {
+                Companies: ['text-indigo-300', 'text-indigo-600'],
+                Banks: ['text-sky-300', 'text-sky-600'],
+                Cash: ['text-emerald-300', 'text-emerald-600'],
+                Cheques: ['text-amber-300', 'text-amber-600'],
+                International: ['text-purple-300', 'text-purple-600'],
+              };
+              // payment group currently filtered (page filter or chart filter) -> highlighted column
+              const activeGroup = [periodPay, filters.payment].map(v => (v.startsWith('g:') ? v.slice(2) : '')).find(Boolean) || '';
+              const num = (n: number) => (n ? Math.round(n).toLocaleString('en-US') : '0');
+              return (
+                <div className={`mt-1 overflow-x-auto rounded-xl border shadow-sm overflow-y-auto ${full ? 'max-h-[560px]' : 'max-h-[380px]'} ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                  <table className="w-full text-center border-collapse">
+                    <thead className="sticky top-0 z-10 shadow-sm">
+                      <tr className={`${isLight ? 'bg-slate-800 text-white' : 'bg-slate-950 text-slate-100'} border-b-2 border-slate-700 font-bold text-xs sm:text-sm`}>
+                        <th className="py-3.5 px-3 text-center whitespace-nowrap tracking-wide text-slate-100">Tenure Duration</th>
+                        {TENURE_GROUP_COLUMNS.map(c => (
+                          <th key={c} className={`py-3.5 px-3 text-center whitespace-nowrap ${colColors[c][0]} ${activeGroup === c ? 'bg-indigo-600/40 text-white font-black underline underline-offset-4' : ''}`}>{c}</th>
+                        ))}
+                        <th className="py-3.5 px-3 text-center font-black whitespace-nowrap text-indigo-300">Total (Count)</th>
+                        <th className="py-3.5 px-3 text-center font-black text-white whitespace-nowrap">Amount</th>
+                        <th className="py-3.5 px-3 text-center font-black text-amber-300 whitespace-nowrap">% percentage</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody className={`divide-y font-mono text-xs sm:text-sm ${isLight ? 'divide-slate-200' : 'divide-slate-800'}`}>
+                      {tt.rows.map((row, idx) => (
+                        <tr key={row.tenure} className={`transition-colors ${
+                          idx % 2 === 1 ? (isLight ? 'bg-slate-50/70' : 'bg-slate-900/50') : (isLight ? 'bg-white' : 'bg-slate-900')
+                        } ${isLight ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-slate-800/60 text-slate-200'}`}>
+                          <td className="py-2.5 px-3 font-bold font-sans text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-purple-500" />
+                              <span className={`font-bold ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>{row.tenure}</span>
+                              <span className={`text-[10px] font-normal ${isLight ? 'text-slate-400' : 'text-slate-500'}`} dir="auto">({row.subLabel})</span>
+                            </div>
+                          </td>
+                          {TENURE_GROUP_COLUMNS.map(c => (
+                            <td key={c} className={`py-2.5 px-3 text-center tabular-nums font-semibold ${colColors[c][1]} ${activeGroup === c ? 'font-black bg-indigo-500/10' : ''}`}>{num(row.groups[c])}</td>
+                          ))}
+                          <td className="py-2.5 px-3 text-center tabular-nums font-black text-indigo-600">{num(row.totalCount)}</td>
+                          <td className={`py-2.5 px-3 text-center tabular-nums font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{num(row.totalAmount)}</td>
+                          <td className="py-2.5 px-3 text-center tabular-nums font-bold">
+                            <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-md font-bold text-xs ${
+                              isLight ? 'bg-purple-100 text-purple-800' : 'bg-purple-900/40 text-purple-300 border border-purple-500/30'}`}>
+                              {row.percentageCount.toFixed(1)}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="sticky bottom-0 z-10 shadow-md">
+                      <tr className={`${isLight ? 'bg-slate-800 text-white' : 'bg-black text-white'} border-amber-500 font-black font-mono border-t-2 text-xs sm:text-sm`}>
+                        <td className="py-3.5 px-3 font-sans text-center font-black tracking-wider text-amber-400">Total</td>
+                        {TENURE_GROUP_COLUMNS.map(c => (
+                          <td key={c} className={`py-3.5 px-3 text-center tabular-nums font-black ${colColors[c][0]}`}>{num(tt.totals.groups[c])}</td>
+                        ))}
+                        <td className="py-3.5 px-3 text-center tabular-nums font-black text-indigo-300">{num(tt.totals.totalCount)}</td>
+                        <td className="py-3.5 px-3 text-center tabular-nums font-black text-amber-400">{num(tt.totals.totalAmount)}</td>
+                        <td className="py-3.5 px-3 text-center tabular-nums font-black text-amber-400">100.0%</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              );
+            })()}
           </ChartCard>
         );
       }
@@ -922,6 +982,19 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
           )}
         </div>,
         filterSlot
+      )}
+
+      {/* Active page filters — shown clearly with the filter value */}
+      {activeFilterCount > 0 && (
+        <div className={`rounded-2xl border px-4 py-3 ${isLight ? 'bg-indigo-50 border-indigo-200' : 'bg-indigo-950/40 border-indigo-500/30'}`}>
+          {chipsRow([
+            { label: 'Payment method', value: filters.payment, onClear: () => setF('payment')('ALL') },
+            { label: 'Club', value: filters.club, onClear: () => setF('club')('ALL') },
+            { label: 'Year', value: filters.year, onClear: () => setF('year')('ALL') },
+            { label: 'Type', value: filters.type, onClear: () => setF('type')('ALL') },
+            { label: 'Period', value: filters.period, onClear: () => setF('period')('ALL') },
+          ], true)}
+        </div>
       )}
 
       {/* ------------------------------ KPI cards ------------------------------ */}

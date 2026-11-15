@@ -658,35 +658,60 @@ export function periodBucket(r: CancellationRecord): string {
   return m === null ? '' : bucketFromMonths(m);
 }
 
-export const PERIOD_RANGES: Record<string, string> = {
-  '< 1 Month': 'less than 1 month',
-  '1 - 3 Months': '1 to < 3 months',
-  '3 - 6 Months': '3 to < 6 months',
-  '6 - 12 Months': '6 to < 12 months',
-  '2 Years': '12 to < 24 months',
-  '3 Years': '24 to < 36 months',
-  '4+ Years': '36 months or more',
+export const PERIOD_SUB_LABELS: Record<string, string> = {
+  '< 1 Month': 'أقل من شهر',
+  '1 - 3 Months': 'من شهر لـ 3 شهور',
+  '3 - 6 Months': 'من 3 لـ 6 شهور',
+  '6 - 12 Months': 'من 6 لـ 12 شهر',
+  '2 Years': '12 - 24 شهر',
+  '3 Years': '24 - 36 شهر',
+  '4+ Years': '36 شهر فأكثر',
 };
 
-/** For each bucket: which values of تصنيف فترة الاشتراك (from the sheet) fall inside it. Used to double-check the day limits. */
-export function periodCheck(records: CancellationRecord[]) {
-  const rows = new Map<string, { total: number; labels: Map<string, number> }>();
+/** Columns of the Tenure table: payment-method groups. */
+export const TENURE_GROUP_COLUMNS = ['Companies', 'Banks', 'Cash', 'Cheques', 'International'];
+
+export interface TenureRow {
+  tenure: string;
+  subLabel: string;
+  groups: Record<string, number>; // count per payment group
+  totalCount: number; // all requests of the period (any payment method)
+  totalAmount: number; // EGP refund rule (Cancelled only, International excluded)
+  percentageCount: number;
+}
+
+/** Table view of the Subscription Period chart — same layout as "Member Tenure & Days Distribution". */
+export function tenureTable(records: CancellationRecord[]): { rows: TenureRow[]; totals: Omit<TenureRow, 'tenure' | 'subLabel' | 'percentageCount'>; noDates: number } {
+  const rows: TenureRow[] = PERIOD_BUCKETS.map(b => ({
+    tenure: b,
+    subLabel: PERIOD_SUB_LABELS[b] || '',
+    groups: Object.fromEntries(TENURE_GROUP_COLUMNS.map(c => [c, 0])),
+    totalCount: 0,
+    totalAmount: 0,
+    percentageCount: 0,
+  }));
+  const byName = new Map(rows.map(r => [r.tenure, r]));
+  let noDates = 0;
   records.forEach(r => {
-    const b = periodBucket(r) || 'No dates';
-    const row = rows.get(b) || { total: 0, labels: new Map<string, number>() };
-    row.total += 1;
-    const l = label(r.periodClass);
-    row.labels.set(l, (row.labels.get(l) || 0) + 1);
-    rows.set(b, row);
+    const b = periodBucket(r);
+    if (!b) {
+      noDates += 1;
+      return;
+    }
+    const row = byName.get(b)!;
+    const g = recordPaymentGroup(r); // International memberships are a group of their own
+    if (g in row.groups) row.groups[g] += 1;
+    row.totalCount += 1;
+    row.totalAmount += egpRefundAmount(r);
   });
-  return [...PERIOD_BUCKETS, 'No dates']
-    .filter(b => rows.has(b))
-    .map(b => ({
-      bucket: b,
-      range: PERIOD_RANGES[b] || '—',
-      total: rows.get(b)!.total,
-      labels: Array.from(rows.get(b)!.labels, ([name, count]) => ({ name, count })).sort((a, c) => c.count - a.count),
-    }));
+  const grand = rows.reduce((s, r) => s + r.totalCount, 0);
+  rows.forEach(r => (r.percentageCount = grand > 0 ? (r.totalCount / grand) * 100 : 0));
+  const totals = {
+    groups: Object.fromEntries(TENURE_GROUP_COLUMNS.map(c => [c, rows.reduce((s, r) => s + r.groups[c], 0)])),
+    totalCount: grand,
+    totalAmount: rows.reduce((s, r) => s + r.totalAmount, 0),
+  };
+  return { rows, totals, noDates };
 }
 
 export function periodDistribution(records: CancellationRecord[]) {
