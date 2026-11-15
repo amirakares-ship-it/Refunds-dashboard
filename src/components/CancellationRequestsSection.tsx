@@ -296,6 +296,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
 
   // Chart-level state
   const [payMode, setPayMode] = useState<'group' | 'option'>('group');
+  const [payMetric, setPayMetric] = useState<'count' | 'amount'>('count');
   const [clubMetric, setClubMetric] = useState<'both' | 'count' | 'amount'>('count');
   const [reasonClub, setReasonClub] = useState('ALL');
   const [reasonPay, setReasonPay] = useState('ALL');
@@ -392,67 +393,81 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         const data = paymentBreakdown(filtered, payMode);
         const totalCount = data.reduce((s, d) => s + d.count, 0);
         const totalAmount = data.reduce((s, d) => s + d.amount, 0);
-        const donut = (key: 'count' | 'amount', total: number, caption: string) => (
-          <div className="flex flex-col items-center">
-            <div className={`text-[11px] font-bold uppercase tracking-wider mb-1 ${subText}`}>{caption}</div>
-            <div className={`${full ? 'h-[300px]' : 'h-56'} w-full`}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={data} dataKey={key} nameKey="name" cx="50%" cy="50%" innerRadius={full ? 55 : 40}
-                    outerRadius={full ? 120 : 90} paddingAngle={2} labelLine={false} label={pieLabel}>
-                    {data.map((d, i) => <Cell key={i} fill={d.fill} stroke={isLight ? '#fff' : '#0f172a'} strokeWidth={2} />)}
-                  </Pie>
-                  <Tooltip content={({ active, payload }: any) => {
-                    if (!active || !payload?.length) return null;
-                    const d = payload[0].payload;
-                    return (
-                      <div className={tooltipBox}>
-                        <div className="flex items-center gap-1.5 font-bold text-white" dir="auto">
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ background: d.fill }} />{d.name}
-                        </div>
-                        <div className="text-slate-300">Requests: <strong className="text-white">{fmtNum(d.count)}</strong>
-                          {totalCount > 0 && <span className="text-slate-400"> ({((d.count / totalCount) * 100).toFixed(1)}%)</span>}</div>
-                        <div className="text-slate-300">Refund: <strong className="text-emerald-400">EGP {fmtMoney(d.amount)}</strong>
-                          {totalAmount > 0 && <span className="text-slate-400"> ({((d.amount / totalAmount) * 100).toFixed(1)}%)</span>}</div>
-                      </div>
-                    );
-                  }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className={`text-xs font-mono font-bold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
-              {key === 'count' ? `${fmtNum(total)} requests` : `EGP ${fmtShort(total)}`}
-            </div>
-          </div>
-        );
+        const key = payMetric; // 'count' | 'amount'
+        const total = key === 'count' ? totalCount : totalAmount;
+        const pctOf = (v: number, t: number) => (t > 0 ? ((v / t) * 100).toFixed(1) : '0.0');
+        const sorted = [...data].sort((a, b) => b[key] - a[key]);
         return (
           <ChartCard chartId={id} title="Payment Methods (Count & Amount)" icon={<PieIcon className="w-4 h-4" />} {...common}
-            controls={<Segmented isLight={isLight} value={payMode} onChange={setPayMode}
-              options={[{ id: 'group', label: 'Grouped' }, { id: 'option', label: 'By option' }]} />}
+            controls={<>
+              <Segmented isLight={isLight} value={payMetric} onChange={setPayMetric}
+                options={[{ id: 'count', label: 'Count' }, { id: 'amount', label: 'Amount' }]} />
+              <Segmented isLight={isLight} value={payMode} onChange={setPayMode}
+                options={[{ id: 'group', label: 'Grouped' }, { id: 'option', label: 'By option' }]} />
+            </>}
             footer={<><span>{data.length} {payMode === 'group' ? 'groups' : 'payment methods'}</span>
-              <span className="font-mono font-bold text-indigo-500">Refund: EGP {fmtMoney(totalAmount)}</span></>}>
+              {metricTotals(key, totalCount, totalAmount)}</>}>
             {data.length === 0 ? <Empty isLight={isLight} /> : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {donut('count', totalCount, 'Count')}
-                  {donut('amount', totalAmount, 'Amount')}
+              <div className="flex flex-col md:flex-row items-center gap-4">
+                {/* Donut (left) */}
+                <div className={`relative shrink-0 w-full md:w-1/2 ${full ? 'h-[380px]' : 'h-64'}`}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={data} dataKey={key} nameKey="name" cx="50%" cy="50%" innerRadius={full ? 80 : 55}
+                        outerRadius={full ? 150 : 105} paddingAngle={2} labelLine={false} label={pieLabel}>
+                        {data.map((d, i) => <Cell key={i} fill={d.fill} stroke={isLight ? '#fff' : '#0f172a'} strokeWidth={2} />)}
+                      </Pie>
+                      <Tooltip content={({ active, payload }: any) => {
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0].payload;
+                        return (
+                          <div className={tooltipBox}>
+                            <div className="flex items-center gap-1.5 font-bold text-white" dir="auto">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ background: d.fill }} />{d.name}
+                            </div>
+                            <div className="text-slate-300">Requests: <strong className="text-white">{fmtNum(d.count)}</strong>
+                              <span className="text-slate-400"> ({pctOf(d.count, totalCount)}%)</span></div>
+                            <div className="text-slate-300">Refund: <strong className="text-emerald-400">
+                              {d.amountText ? d.amountText : `EGP ${fmtMoney(d.amount)}`}</strong>
+                              {!d.amountText && <span className="text-slate-400"> ({pctOf(d.amount, totalAmount)}%)</span>}</div>
+                          </div>
+                        );
+                      }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Total in the centre of the donut */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${subText}`}>{key === 'count' ? 'Requests' : 'Refund EGP'}</span>
+                    <span className={`${full ? 'text-3xl' : 'text-2xl'} font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      {key === 'count' ? fmtNum(total) : fmtShort(total)}
+                    </span>
+                  </div>
                 </div>
-                <div className={`mt-3 grid gap-2 ${full ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
-                  {data.map(d => (
-                    <div key={d.name} className={`p-2 rounded-xl border text-xs flex items-center justify-between gap-2 ${
-                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/70 border-slate-800'}`}>
-                      <span className="flex items-center gap-2 font-bold min-w-0" dir="auto">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.fill }} />
-                        <span className="truncate">{d.name}</span>
-                      </span>
-                      <span className="font-mono text-right shrink-0">
-                        <span className="font-black">{fmtNum(d.count)}</span>
-                        <span className={subText}> · {fmtShort(d.amount)}</span>
-                      </span>
+
+                {/* Legend / numbers (right) */}
+                <div className={`w-full md:w-1/2 space-y-2 ${!full && sorted.length > 6 ? 'max-h-64 overflow-y-auto pr-1' : ''}`}>
+                  {sorted.map(d => (
+                    <div key={d.name} className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 ${
+                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/70 border-slate-800'}`}
+                      style={{ borderLeft: `4px solid ${d.fill}` }}>
+                      <div className="min-w-0">
+                        <div className={`text-sm font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`} dir="auto" title={d.name}>{d.name}</div>
+                        <div className="text-xs font-black mt-0.5" style={{ color: d.fill }}>{pctOf(d[key], total)}%</div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className={`${key === 'count' ? 'text-lg' : 'text-sm'} font-black font-mono leading-tight ${
+                          key === 'count' ? (isLight ? 'text-slate-900' : 'text-white') : subText}`}>
+                          {fmtNum(d.count)} <span className="text-[10px] font-bold">req</span>
+                        </div>
+                        <div className={`${key === 'amount' ? 'text-lg' : 'text-sm'} font-black font-mono leading-tight ${
+                          key === 'amount' ? 'text-emerald-500' : subText}`}>
+                          {d.amountText ? d.amountText : <>{fmtShort(d.amount)} <span className="text-[10px] font-bold">EGP</span></>}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
-              </>
+              </div>
             )}
           </ChartCard>
         );

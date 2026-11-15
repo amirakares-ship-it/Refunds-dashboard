@@ -52,27 +52,21 @@ export function isPendingStatus(status: string): boolean {
 /** A membership is International (WDI) when its type contains one of these, or when its currency is not EGP. */
 export const WDI_KEYWORDS = ['wdi', 'international', 'دولي'];
 
-/** Payment-method grouping. First matching group wins (order matters). */
+/**
+ * Payment-method grouping for the Payment Methods chart / filter.
+ * First matching group wins (order matters). Anything else = "default".
+ *   Cash      = نقدا
+ *   Cheques   = شيكات
+ *   Companies = Aman / Ollin / Premium / Contact / Fastrack
+ *   Banks     = ABK & المشرق
+ */
 export const PAYMENT_GROUPS: { group: string; keywords: string[] }[] = [
   { group: 'Cheques', keywords: ['شيك', 'شيكات', 'cheque', 'check'] },
-  { group: 'Cash', keywords: ['كاش', 'نقد', 'cash'] },
-  {
-    group: 'Companies',
-    keywords: [
-      'شركة', 'شركات', 'company', 'companies', 'تمويل',
-      'ollin', 'اولين', 'أولين', 'premium', 'بريميم', 'aman', 'امان', 'أمان',
-      'contact', 'كونتكت', 'fastrack', 'فاستراك', 'valu', 'فاليو', 'sympl', 'سيمبل', 'souhoola', 'سهولة',
-    ],
-  },
-  {
-    group: 'Banks',
-    keywords: [
-      'بنك', 'بنكي', 'bank', 'visa', 'فيزا', 'master', 'ماستر', 'card', 'كارت', 'بطاقة',
-      'تحويل', 'transfer', 'تقسيط', 'instapay', 'انستا', 'cib', 'nbe', 'qnb',
-    ],
-  },
-  { group: 'default', keywords: ['default', 'ديفولت', 'افتراضي'] },
+  { group: 'Cash', keywords: ['نقدا', 'نقداً', 'نقد', 'كاش', 'cash'] },
+  { group: 'Companies', keywords: [] }, // filled from COMPANY_PAYMENT_KEYWORDS below
+  { group: 'Banks', keywords: ['abk', 'المشرق', 'مشرق', 'mashreq', 'mashriq'] },
 ];
+
 /** "Companies refunds" card: payment methods that count as financing companies. */
 export const COMPANY_PAYMENT_KEYWORDS = [
   'aman', 'أمان', 'امان',
@@ -82,19 +76,21 @@ export const COMPANY_PAYMENT_KEYWORDS = [
   'fastrack', 'fast track', 'فاستراك', 'فاست تراك',
 ];
 
+PAYMENT_GROUPS.find(g => g.group === 'Companies')!.keywords = COMPANY_PAYMENT_KEYWORDS;
+
 export function isCompanyPayment(method: string): boolean {
   const m = lc(method);
   return !!m && COMPANY_PAYMENT_KEYWORDS.some(k => m.includes(k));
 }
 
-export const PAYMENT_GROUP_ORDER = ['Companies', 'Banks', 'Cash', 'Cheques', 'default', 'Other'];
+export const PAYMENT_GROUP_ORDER = ['Companies', 'Banks', 'Cash', 'Cheques', 'International', 'default'];
 export const PAYMENT_GROUP_COLORS: Record<string, string> = {
   Companies: '#6366f1',
   Banks: '#0ea5e9',
   Cash: '#10b981',
   Cheques: '#f59e0b',
-  default: '#ef4444',
-  Other: '#94a3b8',
+  International: '#a855f7',
+  default: '#94a3b8',
 };
 
 /* ---------------------------------------------------------------------
@@ -316,11 +312,16 @@ export function isWdi(r: CancellationRecord): boolean {
 
 export function paymentGroupOf(method: string): string {
   const m = lc(method);
-  if (!m) return 'Other';
+  if (!m) return 'default';
   for (const g of PAYMENT_GROUPS) {
     if (g.keywords.some(k => m.includes(k))) return g.group;
   }
-  return 'Other';
+  return 'default';
+}
+
+/** Group of a request: International memberships are a group of their own, the rest follow the payment method. */
+export function recordPaymentGroup(r: CancellationRecord): string {
+  return isWdi(r) ? 'International' : paymentGroupOf(r.paymentMethod);
 }
 
 /** مبلغ الاسترداد الكلي + رد للعميل (Companies) */
@@ -360,7 +361,7 @@ export const DEFAULT_CANCELLATION_FILTERS: CancellationFilters = {
 
 export function matchesPayment(r: CancellationRecord, selected: string): boolean {
   if (selected === 'ALL') return true;
-  if (selected.startsWith('g:')) return paymentGroupOf(r.paymentMethod) === selected.slice(2);
+  if (selected.startsWith('g:')) return recordPaymentGroup(r) === selected.slice(2);
   if (selected.startsWith('o:')) return label(r.paymentMethod) === selected.slice(2);
   return true;
 }
@@ -420,7 +421,7 @@ export interface FilterOptions {
 }
 
 export function buildFilterOptions(records: CancellationRecord[]): FilterOptions {
-  const groups = new Set(records.map(r => paymentGroupOf(r.paymentMethod)));
+  const groups = new Set(records.map(recordPaymentGroup));
   return {
     clubs: uniqueSorted(records.map(r => label(r.club))),
     years: Array.from(new Set(records.map(r => yearOf(r.approvalDate)).filter(Boolean))).sort(),
@@ -525,8 +526,9 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
 export interface Slice {
   name: string;
   count: number;
-  amount: number;
+  amount: number; // EGP (International memberships are excluded => 0)
   fill: string;
+  amountText?: string; // International: amount in its own currency, e.g. "95K SAR"
 }
 
 const PALETTE = [
@@ -550,11 +552,21 @@ function aggregate(records: CancellationRecord[], keyFn: (r: CancellationRecord)
 
 export function paymentBreakdown(records: CancellationRecord[], mode: 'group' | 'option'): Slice[] {
   if (mode === 'group') {
-    const map = aggregate(records, r => paymentGroupOf(r.paymentMethod));
+    const map = aggregate(records, recordPaymentGroup);
+    // International amounts are in their own currency (never mixed with EGP)
+    const intl = new Map<string, number>();
+    records.forEach(r => {
+      if (isWdi(r) && isRefundStatus(r.status)) {
+        const cur = normalizeCurrency(r.currency) || 'SAR';
+        intl.set(cur, (intl.get(cur) || 0) + refundSum(r));
+      }
+    });
+    const intlText = Array.from(intl, ([cur, v]) => `${fmtShort(v)} ${cur}`).join(' + ') || '0 SAR';
     return PAYMENT_GROUP_ORDER.filter(g => map.has(g)).map(g => ({
       name: g,
       ...map.get(g)!,
       fill: PAYMENT_GROUP_COLORS[g],
+      ...(g === 'International' ? { amountText: intlText } : {}),
     }));
   }
   const map = aggregate(records, r => label(r.paymentMethod));
