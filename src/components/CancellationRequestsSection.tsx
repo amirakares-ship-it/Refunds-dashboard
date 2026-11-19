@@ -838,34 +838,46 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                 The sheet has no «اسم البائع» data yet. Upload the sheet again with that column to see this chart.
               </div>
             ) : top.length === 0 ? <Empty isLight={isLight} /> : (
-              <div style={{ height: Math.max(full ? 420 : 340, top.length * 38 + 40) }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={top} layout="vertical" margin={{ top: 5, right: 60, left: 10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={grid} horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} tickFormatter={sellerMetric === 'amount' ? fmtShort : undefined} tick={{ fill: axis, fontSize: 11 }} />
-                    <YAxis type="category" dataKey="name" width={full ? 230 : 160} interval={0}
-                      tick={{ fill: axis, fontSize: 11, fontWeight: 600 }}
-                      tickFormatter={(v: string) => (v.length > (full ? 34 : 22) ? v.slice(0, full ? 34 : 22) + '…' : v)} />
-                    <Tooltip cursor={{ fill: isLight ? '#f1f5f9' : '#1e293b55' }} content={({ active, payload }: any) => {
-                      if (!active || !payload?.length) return null;
-                      const d = payload[0].payload;
-                      return (
-                        <div className={tooltipBox}>
-                          <div className="font-bold text-white" dir="auto">{d.name}</div>
-                          <div className="text-slate-300">Requests: <strong className="text-white">{fmtNum(d.count)}</strong></div>
-                          <div className="text-slate-300">Refund: <strong className="text-emerald-400">EGP {fmtMoney(d.amount)}</strong></div>
+              <div className={`${full ? 'space-y-2.5' : 'space-y-2'} ${!full ? 'max-h-[470px] overflow-y-auto pr-1' : ''}`}>
+                {top.map((d, i) => {
+                  const maxV = top[0][sellerMetric] || 1;
+                  const pct = grand > 0 ? (d[sellerMetric] / grand) * 100 : 0;
+                  const barW = Math.max(2, (d[sellerMetric] / maxV) * 100);
+                  const medal = i === 0 ? ['#f59e0b', '#fbbf24'] : i === 1 ? ['#94a3b8', '#cbd5e1'] : i === 2 ? ['#c2763a', '#e0a070'] : ['#6366f1', '#818cf8'];
+                  const primary = sellerMetric === 'count' ? fmtNum(d.count) : `EGP ${fmtShort(d.amount)}`;
+                  const secondary = sellerMetric === 'count' ? `EGP ${fmtShort(d.amount)}` : `${fmtNum(d.count)} req`;
+                  return (
+                    <div key={d.name} title={d.variants.length > 1 ? `Merged: ${d.variants.join(' · ')}` : d.name}
+                      className={`flex items-center gap-3 rounded-2xl border ${full ? 'p-3.5' : 'p-2.5'} transition-colors ${
+                        isLight ? 'bg-slate-50 border-slate-200 hover:bg-slate-100' : 'bg-slate-950/60 border-slate-800 hover:bg-slate-800/60'}`}>
+                      <div className={`shrink-0 ${full ? 'w-10 h-10 text-base' : 'w-8 h-8 text-sm'} rounded-full flex items-center justify-center font-black text-white shadow-md`}
+                        style={{ background: `linear-gradient(135deg, ${medal[0]}, ${medal[1]})` }}>
+                        {i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`${full ? 'text-base' : 'text-sm'} font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`} dir="auto">{d.name}</span>
                           {d.variants.length > 1 && (
-                            <div className="text-slate-400 pt-1 border-t border-slate-800" dir="auto">Merged: {d.variants.join(' · ')}</div>
+                            <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/30">
+                              {d.variants.length} spellings merged
+                            </span>
                           )}
                         </div>
-                      );
-                    }} />
-                    <Bar dataKey={sellerMetric} radius={[0, 4, 4, 0]}
-                      label={{ position: 'right', fill: axis, fontSize: 11, fontWeight: 700, formatter: (v: number) => (sellerMetric === 'amount' ? fmtShort(v) : fmtNum(v)) }}>
-                      {top.map((_, i) => <Cell key={i} fill={paletteColor(i)} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                        <div className={`mt-1.5 h-2.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-200' : 'bg-slate-800'}`}>
+                          <div className="h-full rounded-full" style={{ width: `${barW}%`, background: `linear-gradient(90deg, ${medal[0]}, ${medal[1]})` }} />
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right min-w-[92px]">
+                        <div className={`${full ? 'text-xl' : 'text-lg'} font-black font-mono leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{primary}</div>
+                        <div className={`text-[11px] font-mono font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{secondary}</div>
+                      </div>
+                      <div className="shrink-0 w-[68px] text-center text-sm font-black px-2 py-1 rounded-xl text-white shadow-sm"
+                        style={{ background: `linear-gradient(135deg, ${medal[0]}, ${medal[1]})` }}>
+                        {pct.toFixed(1)}%
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </ChartCard>
