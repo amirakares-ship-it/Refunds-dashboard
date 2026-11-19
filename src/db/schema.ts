@@ -48,3 +48,20 @@ export const customizationState = pgTable('customization_state', {
   customization: text('customization').notNull(), // JSON: DashboardCustomization
   updatedAt: text('updated_at').notNull(),
 });
+
+// Cancellation Requests 2026 page — its own sheet, stored separately from the
+// main refunds dataset. Records are stored in chunks (JSON) so large sheets fit.
+export const cancellationChunks = pgTable('cancellation_chunks', {
+  id: serial('id').primaryKey(),
+  chunkIndex: integer('chunk_index').notNull(),
+  totalChunks: integer('total_chunks').notNull(),
+  records: text('records').notNull(), // JSON: CancellationRecord[]
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const cancellationMeta = pgTable('cancellation_meta', {
+  key: text('key').primaryKey(), // 'cancellations_singleton'
+  fileName: text('file_name'),
+  rowCount: integer('row_count'),
+  updatedAt: text('updated_at').notNull(),
+});

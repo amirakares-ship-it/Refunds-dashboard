@@ -6,7 +6,7 @@ import { formatMonthLabel } from '../utils/dataProcessor';
 interface PdfExportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  activeSection: 'all_refunds' | 'cs_work' | 'funds' | 'finance';
+  activeSection: 'all_refunds' | 'cs_work' | 'funds' | 'finance' | 'cancellations';
   filters: DashboardFilters;
   isLight?: boolean;
   onExportSinglePage: (pageKey: 'all_refunds' | 'cs_work' | 'funds' | 'finance', pageName: string) => Promise<void>;
@@ -62,6 +62,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
     cs_work: 'خدمة العملاء (Customer Service)',
     funds: 'التمويل (Funds)',
     finance: 'المالية (Finance)',
+    cancellations: 'طلبات الإلغاء (Cancellation Requests)',
   };
 
   const activeName = sectionNames[activeSection];
