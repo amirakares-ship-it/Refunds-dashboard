@@ -301,9 +301,9 @@ export function isSentToFinanceStatus(status: string): boolean {
   return !!s && PENDING_REFUND_KEYWORDS.some(k => s.includes(normalizeName(k)));
 }
 
-/** Statuses that count in the refund amounts: Cancelled + Pending (sent to finance) + Pending (cheque ready). */
+/** Statuses that count in the refund amounts: Cancelled + ALL Pending statuses (together). */
 export function isRefundStatus(status: string): boolean {
-  return isCancelledStatus(status) || isSentToFinanceStatus(status);
+  return isCancelledStatus(status) || isPendingStatus(status) || isSentToFinanceStatus(status);
 }
 
 /** Normalises currency spellings: ريال / SR / SAR -> SAR, جنيه / LE -> EGP, ... ('' stays '') */
