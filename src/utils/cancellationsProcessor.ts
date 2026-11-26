@@ -301,9 +301,13 @@ export function isSentToFinanceStatus(status: string): boolean {
   return !!s && PENDING_REFUND_KEYWORDS.some(k => s.includes(normalizeName(k)));
 }
 
-/** Statuses that count in the refund amounts: Cancelled + ALL Pending statuses (together). */
+/**
+ * Statuses that count in the refund amounts and counts:
+ * Cancelled + Pending (تم الارسال الى الادارة المالية) + Pending (الشيك جاهز).
+ * Other Pending types (e.g. انتظار اصل الايصال, فى انتظار المديونية, جارى تجهيز المذكرة) are NOT included.
+ */
 export function isRefundStatus(status: string): boolean {
-  return isCancelledStatus(status) || isPendingStatus(status) || isSentToFinanceStatus(status);
+  return isCancelledStatus(status) || isSentToFinanceStatus(status);
 }
 
 /** Normalises currency spellings: ريال / SR / SAR -> SAR, جنيه / LE -> EGP, ... ('' stays '') */
