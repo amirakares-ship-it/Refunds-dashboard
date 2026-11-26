@@ -464,7 +464,7 @@ export function buildFilterOptions(records: CancellationRecord[]): FilterOptions
 
 export interface CancellationKpis {
   totalRequests: number;
-  statusCounts: { name: string; count: number }[];
+  statusCounts: { name: string; count: number; details?: { name: string; count: number }[] }[];
   periodCounts: { name: string; count: number }[];
   typeCounts: { name: string; count: number }[];
   refundAmount: number; // EGP: Cancelled only, International (WDI) excluded
@@ -480,8 +480,16 @@ export interface CancellationKpis {
 }
 
 export function calculateCancellationKpis(records: CancellationRecord[]): CancellationKpis {
-  const statusMap = new Map<string, number>();
-  records.forEach(r => statusMap.set(label(r.status), (statusMap.get(label(r.status)) || 0) + 1));
+  // Count by Status cards: every "Pending (...)" status is grouped into ONE "Pending" card
+  const statusMap = new Map<string, { count: number; details: Map<string, number> }>();
+  records.forEach(r => {
+    const raw = label(r.status);
+    const key = isPendingStatus(r.status) || isSentToFinanceStatus(r.status) ? 'Pending' : raw;
+    const e = statusMap.get(key) || { count: 0, details: new Map<string, number>() };
+    e.count += 1;
+    e.details.set(raw, (e.details.get(raw) || 0) + 1);
+    statusMap.set(key, e);
+  });
 
   const periodMap = new Map<string, number>();
   records.forEach(r => periodMap.set(label(r.periodClass), (periodMap.get(label(r.periodClass)) || 0) + 1));
@@ -534,7 +542,11 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
   const periodOrder = orderedPeriods(records);
   return {
     totalRequests: records.length,
-    statusCounts: Array.from(statusMap, ([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
+    statusCounts: Array.from(statusMap, ([name, v]) => ({
+      name,
+      count: v.count,
+      details: name === 'Pending' ? Array.from(v.details, ([n, c]) => ({ name: n, count: c })).sort((a, b) => b.count - a.count) : undefined,
+    })).sort((a, b) => b.count - a.count),
     typeCounts: Array.from(typeMap, ([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
     periodCounts: periodOrder.map(name => ({ name, count: periodMap.get(name) || 0 })),
     refundAmount,

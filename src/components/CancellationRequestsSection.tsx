@@ -43,7 +43,7 @@ const pieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) 
   );
 };
 
-const tooltipBox = 'bg-slate-900/95 p-3 rounded-xl border border-slate-700 shadow-xl text-xs space-y-1 min-w-[170px]';
+const tooltipBox = 'bg-slate-900 p-3.5 rounded-xl border border-slate-600 shadow-2xl text-[13px] space-y-1.5 min-w-[200px]';
 
 interface CardProps {
   chartId: string;
@@ -450,24 +450,32 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                         outerRadius={full ? 185 : 105} paddingAngle={2} labelLine={false} label={pieLabel}>
                         {data.map((d, i) => <Cell key={i} fill={d.fill} stroke={isLight ? '#fff' : '#0f172a'} strokeWidth={2} />)}
                       </Pie>
-                      <Tooltip content={({ active, payload }: any) => {
+                      <Tooltip wrapperStyle={{ zIndex: 60, outline: 'none' }} content={({ active, payload }: any) => {
                         if (!active || !payload?.length) return null;
                         const d = payload[0].payload;
+                        const row = (lbl: string, val: React.ReactNode, color: string, sub?: string) => (
+                          <div className="flex items-baseline justify-between gap-6">
+                            <span className="text-slate-400 font-semibold whitespace-nowrap">{lbl}</span>
+                            <span className="text-right">
+                              <strong className="font-mono text-[15px] font-black" style={{ color }}>{val}</strong>
+                              {sub && <span className="text-slate-400 text-xs font-semibold"> ({sub})</span>}
+                            </span>
+                          </div>
+                        );
                         return (
-                          <div className={tooltipBox}>
-                            <div className="flex items-center gap-1.5 font-bold text-white" dir="auto">
-                              <span className="w-2.5 h-2.5 rounded-full" style={{ background: d.fill }} />{d.name}
+                          <div className={`${tooltipBox} min-w-[270px]`}>
+                            <div className="flex items-center gap-2 pb-2 mb-1 border-b border-slate-700 text-base font-black text-white" dir="auto">
+                              <span className="w-3 h-3 rounded-full" style={{ background: d.fill }} />{d.name}
                             </div>
-                            <div className="text-slate-300">Requests: <strong className="text-white">{fmtNum(d.count)}</strong>
-                              <span className="text-slate-400"> ({pctOf(d.count, totalCount)}%)</span></div>
-                            <div className="text-slate-300">Refund: <strong className="text-emerald-400">
-                              {d.amountText ? d.amountText : `EGP ${fmtMoney(d.amount)}`}</strong>
-                              {!d.amountText && <span className="text-slate-400"> ({pctOf(d.amount, totalAmount)}%)</span>}</div>
+                            {row('Requests', fmtNum(d.count), '#ffffff', `${pctOf(d.count, totalCount)}%`)}
+                            {d.amountText
+                              ? row('Refund', d.amountText, '#34d399')
+                              : row('Total refund', `EGP ${fmtMoney(d.amount)}`, '#34d399', `${pctOf(d.amount, totalAmount)}%`)}
                             {!d.amountText && isCompanyRow(d.name) && (
-                              <>
-                                <div className="text-slate-300">Companies refund: <strong className="text-indigo-300">EGP {fmtMoney(d.totalPart)}</strong></div>
-                                <div className="text-slate-300">Member refund: <strong className="text-teal-300">EGP {fmtMoney(d.memberPart)}</strong></div>
-                              </>
+                              <div className="pt-1.5 mt-1 border-t border-slate-700 space-y-1.5">
+                                {row('Companies refund', `EGP ${fmtMoney(d.totalPart)}`, '#a5b4fc')}
+                                {row('Member refund', `EGP ${fmtMoney(d.memberPart)}`, '#5eead4')}
+                              </div>
                             )}
                           </div>
                         );
@@ -1108,7 +1116,8 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         <SectionTitle isLight={isLight} icon={<ListChecks className="w-4 h-4" />} text="Count by Status" />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
           {kpis.statusCounts.map((s, i) => (
-            <MiniCard key={s.name} isLight={isLight} name={s.name} count={s.count} total={kpis.totalRequests} color={paletteColor(i)} />
+            <MiniCard key={s.name} isLight={isLight} name={s.name} count={s.count} total={kpis.totalRequests} color={paletteColor(i)}
+              details={s.details} />
           ))}
         </div>
       </div>
@@ -1156,10 +1165,11 @@ const SectionTitle: React.FC<{ isLight: boolean; icon: React.ReactNode; text: st
   </div>
 );
 
-const MiniCard: React.FC<{ isLight: boolean; name: string; count: number; total: number; color: string }> = ({ isLight, name, count, total, color }) => {
+const MiniCard: React.FC<{ isLight: boolean; name: string; count: number; total: number; color: string; details?: { name: string; count: number }[] }> = ({ isLight, name, count, total, color, details }) => {
   const pct = total ? (count / total) * 100 : 0;
   return (
     <div className="rounded-2xl p-4 border relative overflow-hidden shadow-xs"
+      title={details && details.length > 1 ? details.map(d => `${d.name}: ${d.count}`).join('\n') : undefined}
       style={{ background: `${color}${isLight ? '1f' : '2e'}`, borderColor: `${color}66` }}>
       <div className="absolute top-0 left-0 right-0 h-1" style={{ background: color }} />
       <div className={`text-xs font-bold mb-2 truncate ${isLight ? 'text-slate-700' : 'text-slate-200'}`} dir="auto" title={name}>{name}</div>
