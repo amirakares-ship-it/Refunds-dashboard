@@ -16,7 +16,7 @@ import {
   applyChartFilter, buildFilterOptions, calculateCancellationKpis, clubDistribution, filterCancellations,
   fmtMoney, fmtNum, fmtShort, paletteColor, parseCancellationWorkbook, paymentBreakdown,
   periodDistribution, periodBucket, tenureTable, TENURE_GROUP_COLUMNS, reasonDistribution, requestTimeline,
-  reasonClubHeatmap, sellerDistribution, UNSPECIFIED,
+  reasonClubHeatmap, sellerDistribution, isCompanyPayment, UNSPECIFIED,
 } from '../utils/cancellationsProcessor';
 import { loadCancellations, loadLocalCancellations, saveCancellations } from '../utils/cancellationsStore';
 
@@ -428,6 +428,8 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
         const total = key === 'count' ? totalCount : totalAmount;
         const pctOf = (v: number, t: number) => (t > 0 ? ((v / t) * 100).toFixed(1) : '0.0');
         const sorted = [...data].sort((a, b) => b[key] - a[key]);
+        // Split (Companies refund / Member refund) is shown for the Companies rows only
+        const isCompanyRow = (n: string) => n === 'Companies' || (payMode === 'option' && isCompanyPayment(n));
         return (
           <ChartCard chartId={id} title="Payment Methods" icon={<PieIcon className="w-4 h-4" />} {...common}
             controls={<>
@@ -461,6 +463,12 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                             <div className="text-slate-300">Refund: <strong className="text-emerald-400">
                               {d.amountText ? d.amountText : `EGP ${fmtMoney(d.amount)}`}</strong>
                               {!d.amountText && <span className="text-slate-400"> ({pctOf(d.amount, totalAmount)}%)</span>}</div>
+                            {!d.amountText && isCompanyRow(d.name) && (
+                              <>
+                                <div className="text-slate-300">Companies refund: <strong className="text-indigo-300">EGP {fmtMoney(d.totalPart)}</strong></div>
+                                <div className="text-slate-300">Member refund: <strong className="text-teal-300">EGP {fmtMoney(d.memberPart)}</strong></div>
+                              </>
+                            )}
                           </div>
                         );
                       }} />
@@ -476,7 +484,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                 </div>
 
                 {/* Legend / numbers (right) */}
-                <div className={`w-full md:w-[270px] shrink-0 space-y-1.5 ${!full && sorted.length > 6 ? 'max-h-[270px] overflow-y-auto pr-1' : ''}`}>
+                <div className={`w-full md:w-[310px] shrink-0 space-y-1.5 ${!full && sorted.length > 6 ? 'max-h-[270px] overflow-y-auto pr-1' : ''}`}>
                   {sorted.map(d => (
                     <div key={d.name} className={`px-2.5 py-1.5 rounded-xl border flex items-center justify-between gap-2 ${
                       isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/70 border-slate-800'}`}
@@ -490,10 +498,30 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                           key === 'count' ? (isLight ? 'text-slate-900' : 'text-white') : subText}`}>
                           {fmtNum(d.count)} <span className="text-[10px] font-bold">req</span>
                         </div>
-                        <div className={`${key === 'amount' ? 'text-lg' : 'text-sm'} font-black font-mono leading-tight ${
-                          key === 'amount' ? 'text-emerald-500' : subText}`}>
-                          {d.amountText ? d.amountText : <>{fmtShort(d.amount)} <span className="text-[10px] font-bold">EGP</span></>}
-                        </div>
+                        {d.amountText ? (
+                          <div className={`${key === 'amount' ? 'text-lg text-emerald-500' : `text-sm ${subText}`} font-black font-mono leading-tight`}>{d.amountText}</div>
+                        ) : isCompanyRow(d.name) ? (
+                          <>
+                            {key === 'amount' && (
+                              <div className="text-lg font-black font-mono leading-tight text-emerald-500">
+                                {fmtShort(d.amount)} <span className="text-[10px] font-bold">EGP</span>
+                              </div>
+                            )}
+                            <div className="text-[11px] font-mono leading-tight mt-0.5">
+                              <span className={`font-bold ${subText}`}>Companies refund </span>
+                              <span className="font-black text-indigo-500">{fmtShort(d.totalPart)}</span>
+                            </div>
+                            <div className="text-[11px] font-mono leading-tight">
+                              <span className={`font-bold ${subText}`}>Member refund </span>
+                              <span className="font-black text-teal-500">{fmtShort(d.memberPart)}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className={`${key === 'amount' ? 'text-lg' : 'text-sm'} font-black font-mono leading-tight ${
+                            key === 'amount' ? 'text-emerald-500' : subText}`}>
+                            {fmtShort(d.amount)} <span className="text-[10px] font-bold">EGP</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}

@@ -91,6 +91,7 @@ export const PAYMENT_GROUP_COLORS: Record<string, string> = {
   Cash: '#10b981',
   Cheques: '#f59e0b',
   International: '#a855f7',
+  'Other methods': '#f59e0b',
   default: '#94a3b8',
 };
 
@@ -559,6 +560,8 @@ export interface Slice {
   amount: number; // EGP (International memberships are excluded => 0)
   fill: string;
   amountText?: string; // International: amount in its own currency, e.g. "95K SAR"
+  totalPart: number; // sum of مبلغ الاسترداد الكلي ("Companies refund")
+  memberPart: number; // sum of رد للعميل ("Member refund")
 }
 
 const PALETTE = [
@@ -569,20 +572,31 @@ export const paletteColor = (i: number) => PALETTE[i % PALETTE.length];
 
 /** count = all requests, amount = EGP refunds (Cancelled + Deletion, no WDI) */
 function aggregate(records: CancellationRecord[], keyFn: (r: CancellationRecord) => string) {
-  const map = new Map<string, { count: number; amount: number }>();
+  const map = new Map<string, { count: number; amount: number; totalPart: number; memberPart: number }>();
   records.forEach(r => {
     const k = keyFn(r);
-    const e = map.get(k) || { count: 0, amount: 0 };
+    const e = map.get(k) || { count: 0, amount: 0, totalPart: 0, memberPart: 0 };
     e.count += 1;
     e.amount += egpRefundAmount(r);
+    if (isRefundStatus(r.status) && !isWdi(r)) {
+      e.totalPart += r.refundTotal || 0; // مبلغ الاسترداد الكلي  (= "Companies refund")
+      e.memberPart += r.refundCompanies || 0; // رد للعميل  (= "Member refund")
+    }
     map.set(k, e);
   });
   return map;
 }
 
+/** Payment Methods chart (grouped view): Companies / Other methods / International. */
+export const PAYMENT_CHART_GROUPS = ['Companies', 'Other methods', 'International'];
+export function chartGroupOf(r: CancellationRecord): string {
+  if (isWdi(r)) return 'International';
+  return isCompanyPayment(r.paymentMethod) ? 'Companies' : 'Other methods';
+}
+
 export function paymentBreakdown(records: CancellationRecord[], mode: 'group' | 'option'): Slice[] {
   if (mode === 'group') {
-    const map = aggregate(records, recordPaymentGroup);
+    const map = aggregate(records, chartGroupOf);
     // International amounts are in their own currency (never mixed with EGP)
     const intl = new Map<string, number>();
     records.forEach(r => {
@@ -592,7 +606,7 @@ export function paymentBreakdown(records: CancellationRecord[], mode: 'group' | 
       }
     });
     const intlText = Array.from(intl, ([cur, v]) => `${fmtShort(v)} ${cur}`).join(' + ') || '0 SAR';
-    return PAYMENT_GROUP_ORDER.filter(g => map.has(g)).map(g => ({
+    return PAYMENT_CHART_GROUPS.filter(g => map.has(g)).map(g => ({
       name: g,
       ...map.get(g)!,
       fill: PAYMENT_GROUP_COLORS[g],
