@@ -39,7 +39,7 @@ export interface CancellationRecord {
 
 export const UNSPECIFIED = 'غير محدد';
 
-/** A record counts as a "refund" only when its status is Cancelled (Deletion is NOT included). */
+/** Cancelled statuses. Refund amounts = Cancelled + Pending sent to the finance department (see isRefundStatus). Deletion is NOT included. */
 export const REFUND_STATUS_KEYWORDS = ['cancel', 'ملغ', 'إلغاء', 'الغاء'];
 
 /** Status counted as "Pending". */
@@ -283,9 +283,26 @@ export function mapRows(rows: Record<string, any>[], sheetName = ''): ParseResul
 
 const lc = (s: string) => s.toLowerCase();
 
-export function isRefundStatus(status: string): boolean {
+export function isCancelledStatus(status: string): boolean {
   const s = lc(status);
   return !!s && REFUND_STATUS_KEYWORDS.some(k => s.includes(k));
+}
+
+/**
+ * Pending statuses that count in the refund amounts:
+ *  - "تم الارسال الى الادارة المالية" (sent to the finance department)
+ *  - "الشيك جاهز" (cheque ready)
+ */
+export const PENDING_REFUND_KEYWORDS = ['الاداره الماليه', 'ادارة الماليه', 'finance', 'الشيك جاهز', 'cheque ready', 'check ready'];
+
+export function isSentToFinanceStatus(status: string): boolean {
+  const s = normalizeName(status);
+  return !!s && PENDING_REFUND_KEYWORDS.some(k => s.includes(normalizeName(k)));
+}
+
+/** Statuses that count in the refund amounts: Cancelled + Pending (sent to finance) + Pending (cheque ready). */
+export function isRefundStatus(status: string): boolean {
+  return isCancelledStatus(status) || isSentToFinanceStatus(status);
 }
 
 /** Normalises currency spellings: ريال / SR / SAR -> SAR, جنيه / LE -> EGP, ... ('' stays '') */
@@ -352,6 +369,7 @@ export interface CancellationFilters {
   year: string; // from approval date
   type: string; // نوع العضوية
   period: string; // تصنيف فترة الاشتراك
+  status: string; // حالة الإلغاء
 }
 
 export const DEFAULT_CANCELLATION_FILTERS: CancellationFilters = {
@@ -360,6 +378,7 @@ export const DEFAULT_CANCELLATION_FILTERS: CancellationFilters = {
   year: 'ALL',
   type: 'ALL',
   period: 'ALL',
+  status: 'ALL',
 };
 
 export function matchesPayment(r: CancellationRecord, selected: string): boolean {
@@ -376,6 +395,7 @@ export function filterCancellations(records: CancellationRecord[], f: Cancellati
     if (f.year !== 'ALL' && yearOf(r.approvalDate) !== f.year) return false;
     if (f.type !== 'ALL' && label(r.membershipType) !== f.type) return false;
     if (f.period !== 'ALL' && periodBucket(r) !== f.period) return false;
+    if (f.status !== 'ALL' && label(r.status) !== f.status) return false;
     return true;
   });
 }
@@ -489,7 +509,7 @@ export function calculateCancellationKpis(records: CancellationRecord[]): Cancel
       e.count += 1;
       wdi.set(cur, e);
       wdiCount += 1;
-      if (cancelled) wdiCancelledCount += 1;
+      if (isCancelledStatus(r.status)) wdiCancelledCount += 1;
       if (isPendingStatus(r.status)) wdiPendingCount += 1;
     } else {
       if (cancelled) {

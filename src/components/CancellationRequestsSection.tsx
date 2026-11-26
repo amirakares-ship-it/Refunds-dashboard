@@ -987,6 +987,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
                   ['Year (approval date)', 'year', <><option value="ALL">All</option>{options.years.map(y => <option key={y} value={y}>{y}</option>)}</>],
                   ['Type', 'type', <><option value="ALL">All</option>{options.types.map(t => <option key={t} value={t}>{t}</option>)}</>],
                   ['Period', 'period', <><option value="ALL">All</option>{options.periods.map(pd => <option key={pd} value={pd}>{pd}</option>)}</>],
+                  ['Status', 'status', <><option value="ALL">All</option>{options.statuses.map(st => <option key={st} value={st}>{st}</option>)}</>],
                 ] as [string, keyof CancellationFilters, React.ReactNode][]).map(([lbl, key, opts]) => (
                   <div key={key} className="space-y-1">
                     <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{lbl}</label>
@@ -1017,6 +1018,7 @@ export const CancellationRequestsSection: React.FC<Props> = ({ isLight, isPresen
             { label: 'Year', value: filters.year, onClear: () => setF('year')('ALL') },
             { label: 'Type', value: filters.type, onClear: () => setF('type')('ALL') },
             { label: 'Period', value: filters.period, onClear: () => setF('period')('ALL') },
+            { label: 'Status', value: filters.status, onClear: () => setF('status')('ALL') },
           ], true)}
         </div>
       )}
